@@ -588,6 +588,7 @@ let currentPlusModeEnabled = false;
 let currentPlusPaymentMethod = DEFAULT_PLUS_PAYMENT_METHOD;
 let currentPlusAccountAccessStrategy = DEFAULT_PLUS_ACCOUNT_ACCESS_STRATEGY;
 let currentSignupMethod = DEFAULT_SIGNUP_METHOD;
+let currentPhoneVerificationEnabled = false;
 let currentPhoneSignupReloginAfterBindEmailEnabled = DEFAULT_PHONE_SIGNUP_RELOGIN_AFTER_BIND_EMAIL_ENABLED;
 let currentStepDefinitionFlowId = DEFAULT_ACTIVE_FLOW_ID;
 let phoneSignupReuseUiWasLocked = false;
@@ -611,12 +612,14 @@ let stepDefinitions = getStepDefinitionsForMode(false, {
   plusPaymentMethod: currentPlusPaymentMethod,
   plusAccountAccessStrategy: currentPlusAccountAccessStrategy,
   signupMethod: currentSignupMethod,
+  phoneVerificationEnabled: currentPhoneVerificationEnabled,
   phoneSignupReloginAfterBindEmailEnabled: currentPhoneSignupReloginAfterBindEmailEnabled,
 });
 let workflowNodes = getWorkflowNodesForMode(false, {
   plusPaymentMethod: currentPlusPaymentMethod,
   plusAccountAccessStrategy: currentPlusAccountAccessStrategy,
   signupMethod: currentSignupMethod,
+  phoneVerificationEnabled: currentPhoneVerificationEnabled,
   phoneSignupReloginAfterBindEmailEnabled: currentPhoneSignupReloginAfterBindEmailEnabled,
 });
 let STEP_IDS = stepDefinitions.map((step) => Number(step.id)).filter(Number.isFinite);
@@ -883,6 +886,13 @@ function getStepDefinitionsForMode(plusModeEnabled = false, options = {}) {
   const rawSignupMethod = typeof options === 'string'
     ? currentSignupMethod
     : (options.signupMethod || currentSignupMethod || DEFAULT_SIGNUP_METHOD);
+  const phoneVerificationEnabled = typeof options === 'string'
+    ? (typeof inputPhoneVerificationEnabled !== 'undefined' && inputPhoneVerificationEnabled
+      ? Boolean(inputPhoneVerificationEnabled.checked)
+      : Boolean(typeof latestState !== 'undefined' ? latestState?.phoneVerificationEnabled : false))
+    : Boolean(options.phoneVerificationEnabled ?? (typeof inputPhoneVerificationEnabled !== 'undefined' && inputPhoneVerificationEnabled
+      ? inputPhoneVerificationEnabled.checked
+      : (typeof latestState !== 'undefined' ? latestState?.phoneVerificationEnabled : false)));
   const phoneSignupReloginAfterBindEmailEnabled = typeof options === 'string'
     ? currentPhoneSignupReloginAfterBindEmailEnabled
     : Boolean(options.phoneSignupReloginAfterBindEmailEnabled ?? currentPhoneSignupReloginAfterBindEmailEnabled);
@@ -898,6 +908,7 @@ function getStepDefinitionsForMode(plusModeEnabled = false, options = {}) {
     plusPaymentMethod: normalizePlusPaymentMethod(rawPaymentMethod),
     plusAccountAccessStrategy: normalizePlusAccountAccessStrategy(rawPlusAccountAccessStrategy),
     signupMethod: normalizeSignupMethod(rawSignupMethod),
+    phoneVerificationEnabled,
     phoneSignupReloginAfterBindEmailEnabled,
     accountContributionEnabled,
   }) || [])
@@ -922,6 +933,13 @@ function getWorkflowNodesForMode(plusModeEnabled = false, options = {}) {
   const rawSignupMethod = typeof options === 'string'
     ? currentSignupMethod
     : (options.signupMethod || currentSignupMethod || DEFAULT_SIGNUP_METHOD);
+  const phoneVerificationEnabled = typeof options === 'string'
+    ? (typeof inputPhoneVerificationEnabled !== 'undefined' && inputPhoneVerificationEnabled
+      ? Boolean(inputPhoneVerificationEnabled.checked)
+      : Boolean(typeof latestState !== 'undefined' ? latestState?.phoneVerificationEnabled : false))
+    : Boolean(options.phoneVerificationEnabled ?? (typeof inputPhoneVerificationEnabled !== 'undefined' && inputPhoneVerificationEnabled
+      ? inputPhoneVerificationEnabled.checked
+      : (typeof latestState !== 'undefined' ? latestState?.phoneVerificationEnabled : false)));
   const phoneSignupReloginAfterBindEmailEnabled = typeof options === 'string'
     ? currentPhoneSignupReloginAfterBindEmailEnabled
     : Boolean(options.phoneSignupReloginAfterBindEmailEnabled ?? currentPhoneSignupReloginAfterBindEmailEnabled);
@@ -937,6 +955,7 @@ function getWorkflowNodesForMode(plusModeEnabled = false, options = {}) {
     plusPaymentMethod: normalizePlusPaymentMethod(rawPaymentMethod),
     plusAccountAccessStrategy: normalizePlusAccountAccessStrategy(rawPlusAccountAccessStrategy),
     signupMethod: normalizeSignupMethod(rawSignupMethod),
+    phoneVerificationEnabled,
     phoneSignupReloginAfterBindEmailEnabled,
     accountContributionEnabled,
   });
@@ -1003,6 +1022,13 @@ function rebuildStepDefinitionState(plusModeEnabled = false, options = {}) {
   const rawSignupMethod = typeof options === 'string'
     ? currentSignupMethod
     : (options.signupMethod || currentSignupMethod || DEFAULT_SIGNUP_METHOD);
+  const phoneVerificationEnabled = typeof options === 'string'
+    ? (typeof inputPhoneVerificationEnabled !== 'undefined' && inputPhoneVerificationEnabled
+      ? Boolean(inputPhoneVerificationEnabled.checked)
+      : Boolean(typeof latestState !== 'undefined' ? latestState?.phoneVerificationEnabled : false))
+    : Boolean(options.phoneVerificationEnabled ?? (typeof inputPhoneVerificationEnabled !== 'undefined' && inputPhoneVerificationEnabled
+      ? inputPhoneVerificationEnabled.checked
+      : (typeof latestState !== 'undefined' ? latestState?.phoneVerificationEnabled : false)));
   const phoneSignupReloginAfterBindEmailEnabled = typeof options === 'string'
     ? currentPhoneSignupReloginAfterBindEmailEnabled
     : Boolean(options.phoneSignupReloginAfterBindEmailEnabled ?? currentPhoneSignupReloginAfterBindEmailEnabled);
@@ -1013,6 +1039,7 @@ function rebuildStepDefinitionState(plusModeEnabled = false, options = {}) {
   currentPlusPaymentMethod = normalizePlusPaymentMethod(rawPaymentMethod);
   currentPlusAccountAccessStrategy = normalizePlusAccountAccessStrategy(rawPlusAccountAccessStrategy);
   currentSignupMethod = normalizeSignupMethod(rawSignupMethod);
+  currentPhoneVerificationEnabled = Boolean(phoneVerificationEnabled);
   currentPhoneSignupReloginAfterBindEmailEnabled = phoneSignupReloginAfterBindEmailEnabled;
   const nextActiveFlowId = String(
     options?.activeFlowId
@@ -1027,6 +1054,7 @@ function rebuildStepDefinitionState(plusModeEnabled = false, options = {}) {
     plusPaymentMethod: currentPlusPaymentMethod,
     plusAccountAccessStrategy: currentPlusAccountAccessStrategy,
     signupMethod: currentSignupMethod,
+    phoneVerificationEnabled,
     phoneSignupReloginAfterBindEmailEnabled: currentPhoneSignupReloginAfterBindEmailEnabled,
     accountContributionEnabled,
   });
@@ -1036,6 +1064,7 @@ function rebuildStepDefinitionState(plusModeEnabled = false, options = {}) {
       plusPaymentMethod: currentPlusPaymentMethod,
       plusAccountAccessStrategy: currentPlusAccountAccessStrategy,
       signupMethod: currentSignupMethod,
+      phoneVerificationEnabled,
       phoneSignupReloginAfterBindEmailEnabled: currentPhoneSignupReloginAfterBindEmailEnabled,
       accountContributionEnabled,
     })
@@ -9193,6 +9222,9 @@ function resolveStepDefinitionCapabilityState(state = latestState, options = {})
       ),
     signupMethod: capabilityState?.effectiveSignupMethod
       || normalizeSignupMethod((options?.signupMethod ?? nextState?.signupMethod) || DEFAULT_SIGNUP_METHOD),
+    phoneVerificationEnabled: capabilityState
+      ? Boolean(capabilityState.runtimeLocks?.phoneVerificationEnabled)
+      : Boolean(nextState?.phoneVerificationEnabled),
   };
 }
 
@@ -10850,6 +10882,9 @@ function syncStepDefinitionsForMode(plusModeEnabled = false, plusPaymentMethodOr
       || defaultStrategy
   );
   const nextSignupMethod = normalizeSignupMethod(options.signupMethod || currentSignupMethod || DEFAULT_SIGNUP_METHOD);
+  const nextPhoneVerificationEnabled = Boolean(options.phoneVerificationEnabled ?? (typeof inputPhoneVerificationEnabled !== 'undefined' && inputPhoneVerificationEnabled
+    ? inputPhoneVerificationEnabled.checked
+    : (typeof latestState !== 'undefined' ? latestState?.phoneVerificationEnabled : false)));
   const nextPhoneSignupReloginAfterBindEmailEnabled = Boolean(
     options.phoneSignupReloginAfterBindEmailEnabled
       ?? (typeof inputPhoneSignupReloginAfterBindEmail !== 'undefined' && inputPhoneSignupReloginAfterBindEmail
@@ -10877,6 +10912,7 @@ function syncStepDefinitionsForMode(plusModeEnabled = false, plusPaymentMethodOr
     plusPaymentMethod: nextPaymentMethod,
     plusAccountAccessStrategy: nextPlusAccountAccessStrategy,
     signupMethod: nextSignupMethod,
+    phoneVerificationEnabled: nextPhoneVerificationEnabled,
     phoneSignupReloginAfterBindEmailEnabled: nextPhoneSignupReloginAfterBindEmailEnabled,
   });
   const paymentTitleChanged = Boolean(nextPlusModeEnabled && currentPaymentStep && nextPaymentTitle && currentPaymentStep.title !== nextPaymentTitle);
@@ -10885,6 +10921,7 @@ function syncStepDefinitionsForMode(plusModeEnabled = false, plusPaymentMethodOr
     || nextPaymentMethod !== currentPlusPaymentMethod
     || nextPlusAccountAccessStrategy !== currentPlusAccountAccessStrategy
     || nextSignupMethod !== currentSignupMethod
+    || nextPhoneVerificationEnabled !== currentPhoneVerificationEnabled
     || nextPhoneSignupReloginAfterBindEmailEnabled !== currentPhoneSignupReloginAfterBindEmailEnabled
     || nextAccountContributionEnabled !== Boolean(typeof latestState !== 'undefined' ? latestState?.accountContributionEnabled : false)
     || nextActiveFlowId !== currentFlowId
@@ -10898,6 +10935,7 @@ function syncStepDefinitionsForMode(plusModeEnabled = false, plusPaymentMethodOr
     plusPaymentMethod: nextPaymentMethod,
     plusAccountAccessStrategy: nextPlusAccountAccessStrategy,
     signupMethod: nextSignupMethod,
+    phoneVerificationEnabled: nextPhoneVerificationEnabled,
     phoneSignupReloginAfterBindEmailEnabled: nextPhoneSignupReloginAfterBindEmailEnabled,
     accountContributionEnabled: nextAccountContributionEnabled,
   });
@@ -10925,6 +10963,7 @@ function syncStepDefinitionsFromUiState(stateOverrides = {}) {
     plusPaymentMethod: getSelectedPlusPaymentMethod(nextState),
     plusAccountAccessStrategy: stepDefinitionState.plusAccountAccessStrategy,
     signupMethod: stepDefinitionState.signupMethod,
+    phoneVerificationEnabled: Boolean(stepDefinitionState.phoneVerificationEnabled),
     phoneSignupReloginAfterBindEmailEnabled: Boolean(nextState?.phoneSignupReloginAfterBindEmailEnabled),
     accountContributionEnabled: Boolean(nextState?.accountContributionEnabled),
   });
@@ -10949,6 +10988,7 @@ function applySettingsState(state) {
       activeFlowId: state?.activeFlowId || state?.flowId,
       plusPaymentMethod: state?.plusPaymentMethod,
       signupMethod: stepDefinitionState.signupMethod,
+      phoneVerificationEnabled: Boolean(stepDefinitionState.phoneVerificationEnabled),
       phoneSignupReloginAfterBindEmailEnabled: Boolean(state?.phoneSignupReloginAfterBindEmailEnabled),
       accountContributionEnabled: Boolean(state?.accountContributionEnabled),
     });
@@ -16705,6 +16745,10 @@ inputPhoneVerificationEnabled?.addEventListener('change', () => {
     updatePhoneVerificationSettingsUI();
     showToast('已切回邮箱注册', 'info', 1600);
   }
+  syncStepDefinitionsFromUiState({
+    phoneVerificationEnabled: Boolean(inputPhoneVerificationEnabled.checked),
+    signupMethod: getSelectedSignupMethod(),
+  });
   markSettingsDirty(true);
   saveSettings({ silent: true }).catch(() => { });
 });
@@ -17990,6 +18034,14 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
       }
       if (message.payload.phoneVerificationEnabled !== undefined || message.payload.signupMethod !== undefined) {
         updatePhoneVerificationSettingsUI();
+        syncStepDefinitionsFromUiState({
+          phoneVerificationEnabled: inputPhoneVerificationEnabled
+            ? Boolean(inputPhoneVerificationEnabled.checked)
+            : Boolean(latestState?.phoneVerificationEnabled),
+          signupMethod: typeof getSelectedSignupMethod === 'function'
+            ? getSelectedSignupMethod()
+            : latestState?.signupMethod,
+        });
       }
       const activePhoneSmsProvider = normalizePhoneSmsProviderValue(
         message.payload.phoneSmsProvider !== undefined

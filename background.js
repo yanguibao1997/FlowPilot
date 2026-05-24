@@ -936,12 +936,33 @@ function buildResolvedStepDefinitionState(state = {}) {
     signupMethod: resolvedSignupMethod,
     resolvedSignupMethod: resolvedSignupMethod,
     phoneSignupReloginAfterBindEmailEnabled: Boolean(state?.phoneSignupReloginAfterBindEmailEnabled),
+    phoneVerificationEnabled: Boolean(
+      stepDefinitionOptions.phoneVerificationEnabled
+      ?? capabilityState?.runtimeLocks?.phoneVerificationEnabled
+      ?? state?.phoneVerificationEnabled
+    ),
   };
 }
 
 function getStepDefinitionsForState(state = {}) {
   const resolvedState = buildResolvedStepDefinitionState(state);
   const rootScope = typeof self !== 'undefined' ? self : globalThis;
+  const applyPhoneVerificationStepVisibility = (definitions = []) => {
+    if (Boolean(resolvedState?.phoneVerificationEnabled)) {
+      return definitions;
+    }
+    const hiddenStepKeys = new Set([
+      'post-login-phone-verification',
+      'post-bound-email-phone-verification',
+    ]);
+    return (Array.isArray(definitions) ? definitions : [])
+      .filter((definition) => !hiddenStepKeys.has(String(definition?.key || '').trim()))
+      .map((definition, index) => ({
+        ...definition,
+        id: index + 1,
+        order: (index + 1) * 10,
+      }));
+  };
   if (rootScope.MultiPageStepDefinitions?.getSteps) {
     const defaultFlowId = typeof DEFAULT_ACTIVE_FLOW_ID === 'string' ? DEFAULT_ACTIVE_FLOW_ID : 'openai';
     const activeFlowId = String(resolvedState?.activeFlowId || '').trim().toLowerCase() || defaultFlowId;
@@ -951,6 +972,7 @@ function getStepDefinitionsForState(state = {}) {
       plusPaymentMethod: normalizePlusPaymentMethod(resolvedState?.plusPaymentMethod),
       plusAccountAccessStrategy: normalizePlusAccountAccessStrategy(resolvedState?.plusAccountAccessStrategy),
       signupMethod: getSignupMethodForStepDefinitions(resolvedState),
+      phoneVerificationEnabled: Boolean(resolvedState?.phoneVerificationEnabled),
       phoneSignupReloginAfterBindEmailEnabled: Boolean(resolvedState?.phoneSignupReloginAfterBindEmailEnabled),
     });
     if (Array.isArray(definitions)) {
@@ -962,7 +984,7 @@ function getStepDefinitionsForState(state = {}) {
     return [];
   }
   if (!Boolean(resolvedState?.plusModeEnabled)) {
-    return NORMAL_STEP_DEFINITIONS;
+    return applyPhoneVerificationStepVisibility(NORMAL_STEP_DEFINITIONS);
   }
   const paymentMethod = normalizePlusPaymentMethod(resolvedState?.plusPaymentMethod);
   const signupMethod = getSignupMethodForStepDefinitions(resolvedState);
@@ -972,58 +994,58 @@ function getStepDefinitionsForState(state = {}) {
       signupMethod === SIGNUP_METHOD_EMAIL
       && plusAccountAccessStrategy === PLUS_ACCOUNT_ACCESS_STRATEGY_SUB2API_CODEX_SESSION
     ) {
-      return PLUS_GPC_SUB2API_SESSION_STEP_DEFINITIONS;
+      return applyPhoneVerificationStepVisibility(PLUS_GPC_SUB2API_SESSION_STEP_DEFINITIONS);
     }
     if (
       signupMethod === SIGNUP_METHOD_EMAIL
       && plusAccountAccessStrategy === PLUS_ACCOUNT_ACCESS_STRATEGY_CPA_CODEX_SESSION
     ) {
-      return PLUS_GPC_CPA_SESSION_STEP_DEFINITIONS;
+      return applyPhoneVerificationStepVisibility(PLUS_GPC_CPA_SESSION_STEP_DEFINITIONS);
     }
-    return PLUS_GPC_STEP_DEFINITIONS;
+    return applyPhoneVerificationStepVisibility(PLUS_GPC_STEP_DEFINITIONS);
   }
   if (paymentMethod === PLUS_PAYMENT_METHOD_GOPAY) {
     if (
       signupMethod === SIGNUP_METHOD_EMAIL
       && plusAccountAccessStrategy === PLUS_ACCOUNT_ACCESS_STRATEGY_SUB2API_CODEX_SESSION
     ) {
-      return PLUS_GOPAY_SUB2API_SESSION_STEP_DEFINITIONS;
+      return applyPhoneVerificationStepVisibility(PLUS_GOPAY_SUB2API_SESSION_STEP_DEFINITIONS);
     }
     if (
       signupMethod === SIGNUP_METHOD_EMAIL
       && plusAccountAccessStrategy === PLUS_ACCOUNT_ACCESS_STRATEGY_CPA_CODEX_SESSION
     ) {
-      return PLUS_GOPAY_CPA_SESSION_STEP_DEFINITIONS;
+      return applyPhoneVerificationStepVisibility(PLUS_GOPAY_CPA_SESSION_STEP_DEFINITIONS);
     }
-    return PLUS_GOPAY_STEP_DEFINITIONS;
+    return applyPhoneVerificationStepVisibility(PLUS_GOPAY_STEP_DEFINITIONS);
   }
   if (paymentMethod === PLUS_PAYMENT_METHOD_PAYPAL_HOSTED) {
     if (signupMethod === SIGNUP_METHOD_PHONE) {
-      return Boolean(resolvedState?.phoneSignupReloginAfterBindEmailEnabled)
+      return applyPhoneVerificationStepVisibility(Boolean(resolvedState?.phoneSignupReloginAfterBindEmailEnabled)
         ? PLUS_PAYPAL_HOSTED_CHECKOUT_PHONE_BOUND_EMAIL_RELOGIN_STEP_DEFINITIONS
-        : PLUS_PAYPAL_HOSTED_CHECKOUT_PHONE_STEP_DEFINITIONS;
+        : PLUS_PAYPAL_HOSTED_CHECKOUT_PHONE_STEP_DEFINITIONS);
     }
     if (plusAccountAccessStrategy === PLUS_ACCOUNT_ACCESS_STRATEGY_SUB2API_CODEX_SESSION) {
-      return PLUS_PAYPAL_HOSTED_CHECKOUT_SUB2API_SESSION_STEP_DEFINITIONS;
+      return applyPhoneVerificationStepVisibility(PLUS_PAYPAL_HOSTED_CHECKOUT_SUB2API_SESSION_STEP_DEFINITIONS);
     }
     if (plusAccountAccessStrategy === PLUS_ACCOUNT_ACCESS_STRATEGY_CPA_CODEX_SESSION) {
-      return PLUS_PAYPAL_HOSTED_CHECKOUT_CPA_SESSION_STEP_DEFINITIONS;
+      return applyPhoneVerificationStepVisibility(PLUS_PAYPAL_HOSTED_CHECKOUT_CPA_SESSION_STEP_DEFINITIONS);
     }
-    return PLUS_PAYPAL_HOSTED_CHECKOUT_STEP_DEFINITIONS;
+    return applyPhoneVerificationStepVisibility(PLUS_PAYPAL_HOSTED_CHECKOUT_STEP_DEFINITIONS);
   }
   if (
     signupMethod === SIGNUP_METHOD_EMAIL
     && plusAccountAccessStrategy === PLUS_ACCOUNT_ACCESS_STRATEGY_SUB2API_CODEX_SESSION
   ) {
-    return PLUS_PAYPAL_SUB2API_SESSION_STEP_DEFINITIONS;
+    return applyPhoneVerificationStepVisibility(PLUS_PAYPAL_SUB2API_SESSION_STEP_DEFINITIONS);
   }
   if (
     signupMethod === SIGNUP_METHOD_EMAIL
     && plusAccountAccessStrategy === PLUS_ACCOUNT_ACCESS_STRATEGY_CPA_CODEX_SESSION
   ) {
-    return PLUS_PAYPAL_CPA_SESSION_STEP_DEFINITIONS;
+    return applyPhoneVerificationStepVisibility(PLUS_PAYPAL_CPA_SESSION_STEP_DEFINITIONS);
   }
-  return PLUS_PAYPAL_STEP_DEFINITIONS;
+  return applyPhoneVerificationStepVisibility(PLUS_PAYPAL_STEP_DEFINITIONS);
 }
 
 function getStepIdsForState(state = {}) {

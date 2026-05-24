@@ -181,6 +181,7 @@ let currentPlusModeEnabled = false;
 let currentPlusPaymentMethod = 'paypal';
 let currentPlusAccountAccessStrategy = 'oauth';
 let currentSignupMethod = 'email';
+let currentPhoneVerificationEnabled = false;
 let currentPhoneSignupReloginAfterBindEmailEnabled = false;
 let currentStepDefinitionFlowId = 'openai';
 const DEFAULT_ACTIVE_FLOW_ID = 'openai';
@@ -223,6 +224,7 @@ return {
       plusPaymentMethod: 'paypal',
       plusAccountAccessStrategy: 'oauth',
       signupMethod: 'email',
+      phoneVerificationEnabled: false,
       phoneSignupReloginAfterBindEmailEnabled: false,
       accountContributionEnabled: false,
     },

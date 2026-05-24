@@ -405,6 +405,7 @@
           targetId: effectiveTargetId,
           plusAccountAccessStrategy: effectivePlusAccountAccessStrategy,
           plusModeEnabled: runtimeLocks.plusModeEnabled,
+          phoneVerificationEnabled: runtimeLocks.phoneVerificationEnabled,
           signupMethod: effectiveSignupMethod,
         },
         supportedPanelModes: supportedTargetIds,
