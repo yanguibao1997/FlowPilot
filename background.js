@@ -15301,6 +15301,7 @@ async function addStep5PostCompletionDebugLog(message, details = {}) {
     pageState ? `retryPage=${Boolean(pageState.retryPage)}` : null,
     pageState ? `retryEnabled=${Boolean(pageState.retryEnabled)}` : null,
     pageState ? `successState=${pageState.successState || 'none'}` : null,
+    pageState ? `passkeyEnrollVisible=${Boolean(pageState.passkeyEnrollVisible)}` : null,
     pageState ? `profileVisible=${Boolean(pageState.profileVisible)}` : null,
     pageState ? `unknownAuthPage=${Boolean(pageState.unknownAuthPage)}` : null,
     pageState ? `maxCheckAttemptsBlocked=${Boolean(pageState.maxCheckAttemptsBlocked)}` : null,

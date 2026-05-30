@@ -7196,6 +7196,116 @@ function getStep5AuthRetryPageState() {
   return null;
 }
 
+function isStep5PasskeyEnrollPage(rawUrl = location.href) {
+  const url = String(rawUrl || '').trim();
+  if (!url) {
+    return false;
+  }
+
+  try {
+    const parsed = new URL(url);
+    const host = String(parsed.hostname || '').toLowerCase();
+    const path = String(parsed.pathname || '');
+    if (!['auth.openai.com', 'auth0.openai.com', 'accounts.openai.com'].includes(host)) {
+      return false;
+    }
+    if (/\/create-account-enroll-passkey(?:[/?#]|$)/i.test(path)) {
+      return true;
+    }
+  } catch {
+    return false;
+  }
+
+  const pageText = [
+    document.body?.innerText,
+    document.title,
+  ]
+    .filter(Boolean)
+    .join(' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+  return /通行密钥|passkey/i.test(pageText)
+    && /跳过|skip/i.test(pageText)
+    && /创建账户|create account/i.test(pageText);
+}
+
+function getStep5PasskeySkipButton() {
+  const candidates = document.querySelectorAll('button, [role="button"], a, input[type="button"], input[type="submit"]');
+  return Array.from(candidates).find((el) => {
+    if (!isVisibleElement(el)) {
+      return false;
+    }
+    if (!isActionEnabled(el)) {
+      return false;
+    }
+    const text = typeof getActionText === 'function'
+      ? getActionText(el)
+      : [
+          el?.textContent,
+          el?.value,
+          el?.getAttribute?.('aria-label'),
+          el?.getAttribute?.('title'),
+        ]
+          .filter(Boolean)
+          .join(' ')
+          .replace(/\s+/g, ' ')
+          .trim();
+    return /^(跳过|skip)$/i.test(String(text || '').trim());
+  }) || null;
+}
+
+async function recoverStep5PasskeyEnrollPage(options = {}) {
+  const timeoutMs = Math.max(1000, Number(options?.timeoutMs) || 12000);
+  const start = Date.now();
+  const performOperationWithDelay = typeof getOperationDelayRunner === 'function'
+    ? getOperationDelayRunner()
+    : async (_metadata, operation) => operation();
+  let passkeySkipButton = null;
+
+  while (Date.now() - start < timeoutMs) {
+    if (!isStep5PasskeyEnrollPage()) {
+      return {
+        skipped: false,
+        pageVisible: false,
+        url: location.href,
+      };
+    }
+    passkeySkipButton = getStep5PasskeySkipButton();
+    if (passkeySkipButton) {
+      break;
+    }
+    await sleep(150);
+  }
+
+  if (!isStep5PasskeyEnrollPage()) {
+    return {
+      skipped: false,
+      pageVisible: false,
+      url: location.href,
+    };
+  }
+
+  if (!passkeySkipButton) {
+    throw new Error(`步骤 5：检测到通行密钥引导页，但未找到“跳过”按钮。URL: ${location.href}`);
+  }
+
+  log('步骤 5：检测到通行密钥引导页，正在点击“跳过”继续后续流程...', 'warn', {
+    step: 5,
+    stepKey: 'fill-profile',
+  });
+  await humanPause(350, 900);
+  await performOperationWithDelay({ stepKey: 'fill-profile', kind: 'click', label: 'skip-passkey-enroll' }, async () => {
+    simulateClick(passkeySkipButton);
+  });
+  await sleep(1000);
+
+  return {
+    skipped: true,
+    pageVisible: isStep5PasskeyEnrollPage(),
+    url: location.href,
+  };
+}
+
 function getStep5SubmitButton() {
   const direct = document.querySelector('button[type="submit"], input[type="submit"]');
   if (direct && isVisibleElement(direct)) {
@@ -7324,6 +7434,7 @@ function getStep5PostSubmitSuccessState() {
 function getStep5SubmitState() {
   const retryState = getStep5AuthRetryPageState();
   const successState = getStep5PostSubmitSuccessState();
+  const passkeyEnrollVisible = isStep5PasskeyEnrollPage();
   const errorText = typeof getStep5ErrorText === 'function' ? getStep5ErrorText() : '';
   let signupAuthHost = false;
   try {
@@ -7341,12 +7452,14 @@ function getStep5SubmitState() {
     maxCheckAttemptsBlocked: Boolean(retryState?.maxCheckAttemptsBlocked),
     userAlreadyExistsBlocked: Boolean(retryState?.userAlreadyExistsBlocked),
     successState: successState?.state || '',
+    passkeyEnrollVisible,
     profileVisible: isStep5ProfileStillVisible(),
     errorText,
     unknownAuthPage: Boolean(
       signupAuthHost
       && !retryState
       && !successState
+      && !passkeyEnrollVisible
       && !isStep5ProfileStillVisible()
     ),
   };
@@ -7361,6 +7474,7 @@ function logStep5SubmitDebug(message, options = {}) {
     `retryPage=${Boolean(resolvedState?.retryPage)}`,
     `retryEnabled=${Boolean(resolvedState?.retryEnabled)}`,
     `successState=${resolvedState?.successState || 'none'}`,
+    `passkeyEnrollVisible=${Boolean(resolvedState?.passkeyEnrollVisible)}`,
     `profileVisible=${Boolean(resolvedState?.profileVisible)}`,
     `unknownAuthPage=${Boolean(resolvedState?.unknownAuthPage)}`,
     `maxCheckAttemptsBlocked=${Boolean(resolvedState?.maxCheckAttemptsBlocked)}`,
@@ -7503,6 +7617,17 @@ async function waitForStep5SubmitOutcome(options = {}) {
       return successState;
     }
 
+    if (isStep5PasskeyEnrollPage()) {
+      const passkeyRecoveryResult = await recoverStep5PasskeyEnrollPage({
+        timeoutMs: 12000,
+      });
+      debugLog(`检测到资料提交后的通行密钥引导页，已尝试点击“跳过” | skipped=${Boolean(passkeyRecoveryResult?.skipped)} | pageVisible=${Boolean(passkeyRecoveryResult?.pageVisible)}`, {
+        level: passkeyRecoveryResult?.skipped ? 'warn' : 'info',
+      });
+      lastSubmitClickAt = Date.now();
+      continue;
+    }
+
     const step5Error = typeof getStep5ErrorText === 'function' ? getStep5ErrorText() : '';
     if (step5Error) {
       lastStep5Error = step5Error;
@@ -7542,6 +7667,10 @@ async function waitForStep5SubmitOutcome(options = {}) {
   const finalSuccessState = getStep5PostSubmitSuccessState();
   if (finalSuccessState) {
     return finalSuccessState;
+  }
+
+  if (isStep5PasskeyEnrollPage()) {
+    throw new Error(`步骤 5：资料提交后停留在通行密钥引导页，未能自动跳过。URL: ${location.href}`);
   }
 
   const finalStep5Error = (typeof getStep5ErrorText === 'function' ? getStep5ErrorText() : '') || lastStep5Error;

@@ -57,6 +57,9 @@ function getStep5OutcomeBundle() {
     extractFunction('getStep5AuthRetryPathPatterns'),
     extractFunction('isStep5ProfilePageUrl'),
     extractFunction('getStep5AuthRetryPageState'),
+    extractFunction('isStep5PasskeyEnrollPage'),
+    extractFunction('getStep5PasskeySkipButton'),
+    extractFunction('recoverStep5PasskeyEnrollPage'),
     extractFunction('getStep5SubmitButton'),
     extractFunction('waitForStep5SubmitButton'),
     extractFunction('isStep5SubmitButtonClickable'),
@@ -1044,6 +1047,98 @@ return {
     url: 'https://chatgpt.com/',
   });
   assert.equal(api.snapshot().recoverCalls, 1);
+});
+
+test('step 5 skips passkey enroll page after profile submit before completing', async () => {
+  const api = new Function(`
+const clicks = [];
+let passkeyVisible = true;
+const skipButton = {
+  tagName: 'BUTTON',
+  textContent: '跳过',
+  hidden: false,
+  disabled: false,
+  getAttribute(name) {
+    if (name === 'aria-disabled') return 'false';
+    return '';
+  },
+};
+const location = {
+  href: 'https://auth.openai.com/create-account-enroll-passkey',
+};
+const document = {
+  title: '使用通行密钥创建账户',
+  body: {
+    innerText: '使用通行密钥创建账户 下次登录时，无需密码，更快更安全。 跳过',
+  },
+  querySelector() { return null; },
+  querySelectorAll(selector) {
+    if (selector === 'button, [role="button"], a, input[type="button"], input[type="submit"]') {
+      return passkeyVisible ? [skipButton] : [];
+    }
+    if (selector === 'button, [role="button"], input[type="button"], input[type="submit"]') {
+      return [];
+    }
+    return [];
+  },
+};
+const window = {
+  CodexOperationDelay: {
+    async performOperationWithDelay(_metadata, operation) {
+      return operation();
+    },
+  },
+};
+function throwIfStopped() {}
+function log() {}
+async function sleep() {}
+async function humanPause() {}
+function simulateClick(el) {
+  clicks.push(el.textContent || el.tagName || 'element');
+  if (el === skipButton) {
+    passkeyVisible = false;
+    location.href = 'https://chatgpt.com/';
+    document.title = 'ChatGPT';
+    document.body.innerText = 'ChatGPT home';
+  }
+}
+function isVisibleElement(el) { return Boolean(el) && !el.hidden; }
+function isActionEnabled(el) { return Boolean(el) && !el.disabled && el.getAttribute?.('aria-disabled') !== 'true'; }
+function getActionText(el) { return el?.textContent || ''; }
+function getSignupAuthRetryPathPatterns() { return []; }
+function getAuthTimeoutErrorPageState() { return null; }
+async function recoverCurrentAuthRetryPage() { throw new Error('should not recover retry page'); }
+function createSignupUserAlreadyExistsError() { return new Error('user already exists'); }
+function createAuthMaxCheckAttemptsError() { return new Error('max_check_attempts'); }
+function getStep5ErrorText() { return ''; }
+function isStep5Ready() { return false; }
+function isLikelyLoggedInChatgptHomeUrl() { return /^https:\\/\\/chatgpt\\.com\\//.test(location.href); }
+function isOAuthConsentPage() { return false; }
+function isAddPhonePageReady() { return false; }
+
+${extractFunction('getOperationDelayRunner')}
+${extractFunction('isSignupProfilePageUrl')}
+${getStep5OutcomeBundle()}
+
+return {
+  run() {
+    return waitForStep5SubmitOutcome({ timeoutMs: 1000 });
+  },
+  snapshot() {
+    return { clicks, url: location.href };
+  },
+};
+`)();
+
+  const result = await api.run();
+  assert.deepStrictEqual(result, {
+    state: 'logged_in_home',
+    url: 'https://chatgpt.com/',
+  });
+  assert.deepStrictEqual(api.snapshot(), {
+    clicks: ['跳过'],
+    url: 'https://chatgpt.com/',
+  });
 });
 
 test('step 5 does not treat unknown auth page as left_profile success', () => {

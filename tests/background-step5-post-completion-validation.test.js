@@ -140,6 +140,85 @@ return {
   );
 });
 
+test('step 5 post-completion validation logs passkey enroll intermediate state before failing', async () => {
+  const api = new Function(`
+const logs = [];
+const messages = [];
+let stateReadCount = 0;
+
+const chrome = {
+  tabs: {
+    async get() {
+      return {
+        url: stateReadCount <= 1
+          ? 'https://auth.openai.com/create-account-enroll-passkey'
+          : 'https://chatgpt.com/',
+      };
+    },
+  },
+};
+
+async function sendToContentScriptResilient(source, message) {
+  messages.push({ source, type: message.type });
+  if (message.type === 'GET_STEP5_SUBMIT_STATE') {
+    stateReadCount += 1;
+    return {
+      retryPage: false,
+      retryEnabled: false,
+      maxCheckAttemptsBlocked: false,
+      userAlreadyExistsBlocked: false,
+      successState: '',
+      passkeyEnrollVisible: true,
+      profileVisible: false,
+      errorText: '',
+      unknownAuthPage: false,
+      url: 'https://auth.openai.com/create-account-enroll-passkey',
+    };
+  }
+  throw new Error('unexpected message type: ' + message.type);
+}
+
+async function addLog(message, level, meta) {
+  logs.push({ message, level, meta });
+}
+
+async function waitForTabStableComplete() {}
+
+${extractFunction('parseUrlSafely')}
+${extractFunction('isSignupEntryHost')}
+${extractFunction('isLikelyLoggedInChatgptHomeUrl')}
+${extractFunction('isStep5CompletionChatgptUrl')}
+${extractFunction('getStep5SubmitStateFromContent')}
+${extractFunction('recoverStep5SubmitRetryPageOnTab')}
+${extractFunction('validateStep5PostCompletion')}
+
+return {
+  async run() {
+    return validateStep5PostCompletion(99, {});
+  },
+  snapshot() {
+    return { logs, messages, stateReadCount };
+  },
+};
+`)();
+
+  await assert.rejects(
+    api.run(),
+    /未能确认最终状态|create-account-enroll-passkey/
+  );
+  const snapshot = api.snapshot();
+
+  assert.deepStrictEqual(
+    snapshot.messages.map(({ type }) => type),
+    ['GET_STEP5_SUBMIT_STATE']
+  );
+  assert.equal(snapshot.stateReadCount, 1);
+  assert.equal(
+    snapshot.logs.some(({ message }) => /未识别到成功或明确失败状态/.test(message)),
+    true
+  );
+});
+
 test('step 5 post-completion validation rejects non-chatgpt success candidates', async () => {
   const api = new Function(`
 const logs = [];
