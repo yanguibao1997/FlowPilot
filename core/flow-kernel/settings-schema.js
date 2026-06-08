@@ -197,6 +197,9 @@
       return {
         schemaVersion: 5,
         activeFlowId: defaultFlowId,
+        ui: {
+          language: 'auto',
+        },
         services: {
           account: {
             customPassword: '',
@@ -605,6 +608,13 @@
       const normalized = {
         schemaVersion: Number(input?.settingsSchemaVersion || nested?.schemaVersion || defaults.schemaVersion) || defaults.schemaVersion,
         activeFlowId,
+        ui: {
+          language: rootScope.FlowPilotI18n?.normalizeLanguageSetting
+            ? rootScope.FlowPilotI18n.normalizeLanguageSetting(nested?.ui?.language ?? input?.uiLanguage ?? defaults.ui.language)
+            : (['auto', 'zh-CN', 'en-US'].includes(String(nested?.ui?.language ?? input?.uiLanguage ?? '').trim())
+              ? String(nested?.ui?.language ?? input?.uiLanguage).trim()
+              : defaults.ui.language),
+        },
         services: {
           email: {
             provider: String(
@@ -732,6 +742,7 @@
       const kiroState = normalizedState.flows.kiro || buildDefaultFlowSettings('kiro');
       const grokState = normalizedState.flows.grok || buildDefaultFlowSettings('grok');
       next.activeFlowId = normalizedState.activeFlowId;
+      next.uiLanguage = normalizedState.ui?.language || 'auto';
       next.targetId = getSelectedTargetId(normalizedState, normalizedState.activeFlowId);
       next.vpsUrl = openaiState.targets.cpa?.vpsUrl || '';
       next.vpsPassword = openaiState.targets.cpa?.vpsPassword || '';

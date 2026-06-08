@@ -44,10 +44,20 @@
       <button id="btn-theme" class="btn btn-ghost btn-sm header-theme-btn" title="切换主题">主题</button>
       <div id="config-menu-shell" class="header-menu">
         <button id="btn-config-menu" class="btn btn-ghost btn-sm header-config-btn" type="button" aria-haspopup="menu"
-          aria-expanded="false">配置</button>
+          aria-expanded="false" data-i18n="sidepanel.config.menu">配置</button>
         <div id="config-menu" class="header-dropdown" role="menu" aria-labelledby="btn-config-menu" hidden>
-          <button id="btn-export-settings" class="header-dropdown-item" type="button" role="menuitem">导出配置</button>
-          <button id="btn-import-settings" class="header-dropdown-item" type="button" role="menuitem">导入配置</button>
+          <label class="header-dropdown-field">
+            <span class="header-dropdown-label" data-i18n="sidepanel.language.label">语言</span>
+            <select id="select-ui-language" class="header-dropdown-select" aria-label="语言">
+              <option value="auto" data-i18n="sidepanel.language.auto">自动</option>
+              <option value="zh-CN" data-i18n="sidepanel.language.zh-CN">中文</option>
+              <option value="en-US" data-i18n="sidepanel.language.en-US">English</option>
+            </select>
+          </label>
+          <button id="btn-export-settings" class="header-dropdown-item" type="button" role="menuitem"
+            data-i18n="sidepanel.config.export">导出配置</button>
+          <button id="btn-import-settings" class="header-dropdown-item" type="button" role="menuitem"
+            data-i18n="sidepanel.config.import">导入配置</button>
         </div>
       </div>
     </div>
@@ -1954,6 +1964,9 @@
   <script src="../flows/index.js"></script>
   <script src="../core/flow-kernel/flow-registry.js"></script>
   <script src="../shared/contribution-registry.js"></script>
+  <script src="../shared/i18n/catalog.js"></script>
+  <script src="../shared/i18n/runtime.js"></script>
+  <script src="i18n-static.js"></script>
   <script src="../core/flow-kernel/settings-schema.js"></script>
   <script src="../core/flow-kernel/flow-capabilities.js"></script>
   <script src="../data/step-definitions.js"></script>

@@ -10,6 +10,8 @@ importScripts(
   'flows/index.js',
   'core/flow-kernel/flow-registry.js',
   'shared/contribution-registry.js',
+  'shared/i18n/catalog.js',
+  'shared/i18n/runtime.js',
   'core/flow-kernel/settings-schema.js',
   'imports/legacy/settings-importer.js',
   'core/flow-kernel/source-registry.js',
@@ -1266,6 +1268,7 @@ function setupDeclarativeNetRequestRules() {
 // ============================================================
 
 const PERSISTED_SETTING_DEFAULTS = {
+  uiLanguage: 'auto',
   targetId: 'cpa',
   activeFlowId: DEFAULT_ACTIVE_FLOW_ID,
   kiroRsUrl: String(self.MultiPageFlowRegistry?.DEFAULT_KIRO_RS_URL || '').trim(),
@@ -1453,6 +1456,7 @@ const PERSISTED_SETTING_KEYS = Object.keys(PERSISTED_SETTING_DEFAULTS);
 const PERSISTED_SETTINGS_SCHEMA_KEYS = ['settingsSchemaVersion', 'settingsState'];
 const SETTINGS_SCHEMA_VIEW_KEYS = Object.freeze([
   'activeFlowId',
+  'uiLanguage',
   'targetId',
   'vpsUrl',
   'vpsPassword',
@@ -3226,6 +3230,10 @@ function normalizeStepExecutionRangeByFlow(value = {}) {
 
 function normalizePersistentSettingValue(key, value) {
   switch (key) {
+    case 'uiLanguage':
+      return self.FlowPilotI18n?.normalizeLanguageSetting
+        ? self.FlowPilotI18n.normalizeLanguageSetting(value)
+        : (['auto', 'zh-CN', 'en-US'].includes(String(value || '').trim()) ? String(value || '').trim() : 'auto');
     case 'targetId':
       return String(value || '').trim().toLowerCase();
     case 'activeFlowId':

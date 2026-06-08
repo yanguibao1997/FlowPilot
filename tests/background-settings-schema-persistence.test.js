@@ -58,10 +58,19 @@ function buildHarness(extra = '') {
 const self = {};
 ${flowRegistrySource}
 ${settingsSchemaSource}
+const normalizeLanguageSettingForTest = (value = 'auto') => {
+  const normalized = String(value || '').trim().replace(/_/g, '-').toLowerCase();
+  if (normalized === 'auto') return 'auto';
+  if (normalized === 'en' || normalized.startsWith('en-')) return 'en-US';
+  if (normalized === 'zh' || normalized.startsWith('zh-')) return 'zh-CN';
+  return 'auto';
+};
+self.FlowPilotI18n = { normalizeLanguageSetting: normalizeLanguageSettingForTest };
 const DEFAULT_ACTIVE_FLOW_ID = 'openai';
 const DEFAULT_SUB2API_GROUP_NAMES = ['codex', 'openai-plus'];
 const SETTINGS_SCHEMA_VIEW_KEYS = Object.freeze([
   'activeFlowId',
+  'uiLanguage',
   'targetId',
   'vpsUrl',
   'vpsPassword',
@@ -99,6 +108,7 @@ const SETTINGS_SCHEMA_VIEW_KEY_SET = new Set(SETTINGS_SCHEMA_VIEW_KEYS);
 const DEFAULT_MADAO_BASE_URL = 'http://127.0.0.1:7822';
 const DEFAULT_MADAO_MODE = 'routing_plan';
 const PERSISTED_SETTING_DEFAULTS = {
+  uiLanguage: 'auto',
   activeFlowId: DEFAULT_ACTIVE_FLOW_ID,
   targetId: 'cpa',
   signupMethod: 'email',
@@ -307,6 +317,7 @@ test('buildPersistentSettingsPayload writes canonical settings schema into persi
 
   const payload = api.buildPersistentSettingsPayload({
     activeFlowId: 'kiro',
+    uiLanguage: 'en',
     kiroRsUrl: 'https://kiro.example.com/admin',
     kiroRsKey: 'secret-key',
     openaiWebchatUrl: ' https://webchat.example.com/admin ',
@@ -315,6 +326,7 @@ test('buildPersistentSettingsPayload writes canonical settings schema into persi
   }, { fillDefaults: true });
 
   assert.equal(payload.activeFlowId, 'kiro');
+  assert.equal(payload.uiLanguage, 'en-US');
   assert.equal(payload.targetId, 'kiro-rs');
   assert.equal(payload.kiroRsUrl, 'https://kiro.example.com/admin');
   assert.equal(payload.kiroRsKey, 'secret-key');
@@ -330,6 +342,7 @@ test('buildPersistentSettingsPayload writes canonical settings schema into persi
   assert.equal(Object.prototype.hasOwnProperty.call(payload, 'kiroRegion'), false);
   assert.equal(payload.settingsSchemaVersion, 5);
   assert.equal(payload.settingsState.activeFlowId, 'kiro');
+  assert.equal(payload.settingsState.ui.language, 'en-US');
   assert.equal(payload.settingsState.flows.kiro.selectedTargetId, 'kiro-rs');
   assert.equal(payload.settingsState.flows.openai.targets.webchat.baseUrl, 'https://webchat.example.com/admin');
   assert.equal(payload.settingsState.flows.openai.targets.webchat.apiKey, 'webchat-key');
