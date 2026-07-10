@@ -53,7 +53,6 @@ test('Duck token provider normalizes token and creates duck address through DDG 
   });
 
   assert.equal(api.normalizeDuckDdgToken('Bearer token-1'), 'token-1');
-  assert.equal(api.normalizeDuckEmailGenerationMode('direct'), 'token');
 
   const email = await provider.requestDuckAddressWithToken('Bearer ddg-token');
 
@@ -62,6 +61,24 @@ test('Duck token provider normalizes token and creates duck address through DDG 
   assert.equal(requests[0].url, 'https://quack.duckduckgo.com/api/email/addresses');
   assert.equal(requests[0].options.method, 'POST');
   assert.equal(requests[0].options.headers.Authorization, 'Bearer ddg-token');
+});
+
+test('Duck token provider marks DDG daily limit failures for auto-run hard stop', async () => {
+  const api = loadDuckTokenProviderApi();
+  const provider = api.createDuckTokenProvider({
+    fetchImpl: async () => ({
+      ok: false,
+      status: 429,
+      text: async () => JSON.stringify({ error: 'daily limit reached' }),
+    }),
+    throwIfStopped: () => {},
+  });
+
+  await assert.rejects(
+    () => provider.requestDuckAddressWithToken('ddg-token'),
+    /DDG_DAILY_LIMIT::DuckDuckGo 地址生成已达到每日限制/
+  );
+  assert.equal(api.isDuckDdgDailyLimitFailure(new Error('DDG_DAILY_LIMIT::daily limit reached')), true);
 });
 
 test('Duck token provider captures Authorization Bearer token from DDG request and persists it', async () => {

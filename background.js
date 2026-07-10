@@ -1371,7 +1371,6 @@ const PERSISTED_SETTING_DEFAULTS = {
   customMailReceiveMode: DEFAULT_CUSTOM_MAIL_RECEIVE_MODE,
   customMailHelperBaseUrl: DEFAULT_CUSTOM_MAIL_HELPER_BASE_URL,
   emailGenerator: 'duck',
-  duckEmailGenerationMode: 'page',
   duckDdgToken: '',
   customMailProviderPool: [],
   customEmailPool: [],
@@ -2572,14 +2571,6 @@ function normalizeEmailGenerator(value = '') {
   return 'duck';
 }
 
-function normalizeDuckEmailGenerationMode(value = '') {
-  if (typeof self.MultiPageBackgroundDuckTokenProvider?.normalizeDuckEmailGenerationMode === 'function') {
-    return self.MultiPageBackgroundDuckTokenProvider.normalizeDuckEmailGenerationMode(value);
-  }
-  const normalized = String(value || '').trim().toLowerCase();
-  return ['token', 'ddg-token', 'api', 'direct'].includes(normalized) ? 'token' : 'page';
-}
-
 function normalizeDuckDdgToken(value = '') {
   if (typeof self.MultiPageBackgroundDuckTokenProvider?.normalizeDuckDdgToken === 'function') {
     return self.MultiPageBackgroundDuckTokenProvider.normalizeDuckDdgToken(value);
@@ -3499,8 +3490,6 @@ function normalizePersistentSettingValue(key, value) {
       return normalizeCustomMailHelperBaseUrl(value);
     case 'emailGenerator':
       return normalizeEmailGenerator(value);
-    case 'duckEmailGenerationMode':
-      return normalizeDuckEmailGenerationMode(value);
     case 'duckDdgToken':
       return normalizeDuckDdgToken(value);
     case 'customMailProviderPool':
@@ -9899,6 +9888,15 @@ function isKiroProxyFailure(error) {
   return /Kiro\s*(?:注册页|桌面授权页).*(?:CloudFront\s*拒绝请求|AWS\s*请求异常)|(?:当前代理\s*IP|出口区域异常).*(?:切换代理|更换代理)|AWS\s*风控.*(?:切换代理|更换代理)/i.test(message);
 }
 
+function isDuckDdgDailyLimitFailure(error) {
+  const checker = self.MultiPageBackgroundDuckTokenProvider?.isDuckDdgDailyLimitFailure;
+  if (typeof checker === 'function' && checker(error)) {
+    return true;
+  }
+  const message = getErrorMessage(error);
+  return /DDG_DAILY_LIMIT::|DuckDuckGo[\s\S]*(?:每日|每天|今日|日上限|日限|单日|一天)[\s\S]*(?:限制|限额|上限|额度|次数|数量|已达|达到|超出|超过|用完)|DuckDuckGo[\s\S]*(?:daily|quota|limit|maximum|max)/i.test(message);
+}
+
 function isStep4Route405RecoveryLimitFailure(error) {
   const message = getErrorMessage(error);
   return /STEP4_405_RECOVERY_LIMIT::|步骤\s*4：检测到\s*405\s*错误页面，已连续点击“重试”恢复/i.test(message);
@@ -12281,7 +12279,6 @@ const generatedEmailHelpers = self.MultiPageGeneratedEmailHelpers?.createGenerat
   buildCloudflareTempEmailHeaders,
   CLOUDFLARE_TEMP_EMAIL_GENERATOR,
   CUSTOM_EMAIL_POOL_GENERATOR,
-  DUCK_AUTOFILL_URL,
   fetch,
   fetchIcloudHideMyEmail,
   getCloudflareTempEmailAddressFromResponse,
@@ -12293,14 +12290,11 @@ const generatedEmailHelpers = self.MultiPageGeneratedEmailHelpers?.createGenerat
   fetchDuckEmailWithToken: duckTokenProvider?.fetchDuckEmailWithToken,
   joinCloudflareTempEmailUrl,
   normalizeDuckDdgToken,
-  normalizeDuckEmailGenerationMode,
   normalizeCloudflareDomain,
   normalizeCloudflareTempEmailAddress,
   normalizeEmailGenerator,
   isGeneratedAliasProvider,
   persistRegistrationEmailState,
-  reuseOrCreateTab,
-  sendToContentScript,
   setEmailState,
   throwIfStopped,
 });
@@ -12323,10 +12317,6 @@ async function requestCloudflareTempEmailJson(config, path, options = {}) {
 
 async function fetchCloudflareTempEmailAddress(state, options = {}) {
   return generatedEmailHelpers.fetchCloudflareTempEmailAddress(state, options);
-}
-
-async function fetchDuckEmail(options = {}) {
-  return generatedEmailHelpers.fetchDuckEmail(options);
 }
 
 async function fetchGeneratedEmail(state, options = {}) {
@@ -12787,6 +12777,7 @@ const autoRunController = self.MultiPageBackgroundAutoRunController?.createAutoR
   isPlusCheckoutNonFreeTrialFailure,
   isAutoRunTimerParkedError,
   isGpcPageFlowEndedFailure,
+  isDuckDdgDailyLimitFailure,
   isKiroProxyFailure,
   isRestartCurrentAttemptError,
   isStep4Route405RecoveryLimitFailure,

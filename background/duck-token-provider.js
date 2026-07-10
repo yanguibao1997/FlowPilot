@@ -2,11 +2,7 @@
   root.MultiPageBackgroundDuckTokenProvider = factory(root);
 })(typeof self !== 'undefined' ? self : globalThis, function createDuckTokenProviderModule(root = globalThis) {
   const DUCK_DDG_ADDRESSES_URL = 'https://quack.duckduckgo.com/api/email/addresses';
-
-  function normalizeDuckEmailGenerationMode(value = '') {
-    const normalized = String(value || '').trim().toLowerCase();
-    return ['token', 'ddg-token', 'api', 'direct'].includes(normalized) ? 'token' : 'page';
-  }
+  const DUCK_DDG_DAILY_LIMIT_ERROR_PREFIX = 'DDG_DAILY_LIMIT::';
 
   function normalizeDuckDdgToken(value = '') {
     const trimmed = String(value || '').trim().replace(/^["']|["']$/g, '');
@@ -24,6 +20,24 @@
       return `${trimmed.toLowerCase()}@duck.com`;
     }
     return '';
+  }
+
+  function isDuckDdgDailyLimitMessage(message = '') {
+    const text = String(message || '').trim();
+    if (!text) {
+      return false;
+    }
+    return /DDG_DAILY_LIMIT::|DuckDuckGo[\s\S]*(?:每日|每天|今日|日上限|日限|单日|一天)[\s\S]*(?:限制|限额|上限|额度|次数|数量|已达|达到|超出|超过|用完)|Duck[\s\S]*(?:每日|每天|今日|日上限|日限|单日|一天)[\s\S]*(?:限制|限额|上限|额度|次数|数量|已达|达到|超出|超过|用完)|(?:每日|每天|今日|日上限|日限|单日|一天)[\s\S]*(?:Duck|地址|邮箱|生成)[\s\S]*(?:限制|限额|上限|额度|次数|数量|已达|达到|超出|超过|用完)|(?:daily|day|24\s*hours?)[\s_-]*(?:limit|quota|cap|maximum|max)|(?:limit|quota|maximum|max)[\s\S]*(?:per\s*day|daily|24\s*hours?)|(?:daily|quota|limit)[\s_-]*(?:exceeded|reached)|(?:reached|exceeded)[\s\S]*(?:daily|quota|limit|maximum|max)[\s\S]*(?:Duck|address|email|generate)|(?:too\s+many|maximum|max)[\s\S]*(?:Duck|private\s+address|email\s+address|addresses)/i.test(text);
+  }
+
+  function createDuckDdgDailyLimitError(message = '') {
+    const detail = String(message || '').trim() || '已达到每日生成限制';
+    return new Error(`${DUCK_DDG_DAILY_LIMIT_ERROR_PREFIX}DuckDuckGo 地址生成已达到每日限制：${detail}`);
+  }
+
+  function isDuckDdgDailyLimitFailure(error) {
+    const message = error instanceof Error ? error.message : String(error || '');
+    return isDuckDdgDailyLimitMessage(message);
   }
 
   function parseDuckApiAddress(payload) {
@@ -109,15 +123,22 @@
         if (response.status === 401 || response.status === 403) {
           throw new Error('DDG Token 已失效或没有权限，请重新登录 DuckDuckGo Email Protection 后获取。');
         }
+        const detail = parsed?.error || parsed?.message || parsed?.detail || text || `HTTP ${response.status}`;
         if (response.status === 429) {
-          throw new Error('DuckDuckGo 地址生成频率受限或达到限制，请稍后再试。');
+          throw createDuckDdgDailyLimitError(detail);
         }
-        const detail = parsed?.error || parsed?.message || text || `HTTP ${response.status}`;
+        if (isDuckDdgDailyLimitMessage(detail)) {
+          throw createDuckDdgDailyLimitError(detail);
+        }
         throw new Error(`DuckDuckGo API 请求失败：${detail}`);
       }
 
       const email = parseDuckApiAddress(parsed);
       if (!email) {
+        const detail = parsed?.error || parsed?.message || parsed?.detail || text;
+        if (isDuckDdgDailyLimitMessage(detail)) {
+          throw createDuckDdgDailyLimitError(detail);
+        }
         throw new Error('DuckDuckGo API 未返回可用的 @duck.com 地址。');
       }
       return email;
@@ -235,7 +256,6 @@
       fetchDuckEmailWithToken,
       normalizeDuckAddress,
       normalizeDuckDdgToken,
-      normalizeDuckEmailGenerationMode,
       requestDuckAddressWithToken,
       waitForDuckTokenRequest,
     };
@@ -243,8 +263,9 @@
 
   return {
     createDuckTokenProvider,
+    isDuckDdgDailyLimitFailure,
+    isDuckDdgDailyLimitMessage,
     normalizeDuckAddress,
     normalizeDuckDdgToken,
-    normalizeDuckEmailGenerationMode,
   };
 });

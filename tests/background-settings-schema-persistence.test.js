@@ -139,7 +139,6 @@ const PERSISTED_SETTING_DEFAULTS = {
   openaiChatgpt2ApiUploadedAt: 0,
   openaiChatgpt2ApiUploadMessage: '',
   openaiChatgpt2ApiTargetUrl: '',
-  duckEmailGenerationMode: 'page',
   duckDdgToken: '',
   phoneSmsProvider: 'hero-sms',
   madaoBaseUrl: DEFAULT_MADAO_BASE_URL,
@@ -186,10 +185,6 @@ function normalizeCloudflareTempEmailDomains(value) { return Array.isArray(value
 function normalizeCloudMailDomains(value) { return Array.isArray(value) ? value : []; }
 function normalizeMailProvider(value = '') { return String(value || '163').trim().toLowerCase() || '163'; }
 function normalizeCustomMailReceiveMode(value = '') { return String(value || '').trim().toLowerCase() === 'helper' ? 'helper' : 'manual'; }
-function normalizeDuckEmailGenerationMode(value = '') {
-  const normalized = String(value || '').trim().toLowerCase();
-  return ['token', 'ddg-token', 'api', 'direct'].includes(normalized) ? 'token' : 'page';
-}
 function normalizeDuckDdgToken(value = '') {
   const trimmed = String(value || '').trim().replace(/^["']|["']$/g, '');
   const bearerMatch = trimmed.match(/^Bearer\\s+(.+)$/i);
@@ -773,17 +768,14 @@ function getRemovedKeys() {
   assert.equal(Object.prototype.hasOwnProperty.call(write, 'customMailReceiveMode'), false);
 });
 
-test('buildPersistentSettingsPayload keeps Duck token generation settings in flat persisted settings', () => {
+test('buildPersistentSettingsPayload keeps Duck DDG token in flat persisted settings', () => {
   const api = buildHarness();
 
   const payload = api.buildPersistentSettingsPayload({
-    duckEmailGenerationMode: 'direct',
     duckDdgToken: 'Bearer ddg-token-for-test',
   }, { fillDefaults: true });
 
-  assert.equal(payload.duckEmailGenerationMode, 'token');
   assert.equal(payload.duckDdgToken, 'ddg-token-for-test');
-  assert.equal(Object.prototype.hasOwnProperty.call(payload.settingsState.services.email, 'duckEmailGenerationMode'), false);
   assert.equal(Object.prototype.hasOwnProperty.call(payload.settingsState.services.email, 'duckDdgToken'), false);
 });
 

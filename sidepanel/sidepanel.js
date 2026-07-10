@@ -263,8 +263,6 @@ const rowMail2925PoolSettings = document.getElementById('row-mail2925-pool-setti
 const mail2925ModeButtons = Array.from(document.querySelectorAll('[data-mail2925-mode]'));
 const rowEmailGenerator = document.getElementById('row-email-generator');
 const selectEmailGenerator = document.getElementById('select-email-generator');
-const rowDuckEmailGenerationMode = document.getElementById('row-duck-email-generation-mode');
-const selectDuckEmailGenerationMode = document.getElementById('select-duck-email-generation-mode');
 const rowDuckDdgToken = document.getElementById('row-duck-ddg-token');
 const inputDuckDdgToken = document.getElementById('input-duck-ddg-token');
 const rowCustomEmailPool = document.getElementById('row-custom-email-pool');
@@ -5421,9 +5419,6 @@ function collectSettingsPayload() {
       : 'http://127.0.0.1:17374',
     currentMail2925AccountId: String(latestState?.currentMail2925AccountId || '').trim(),
     emailGenerator: selectEmailGenerator.value,
-    duckEmailGenerationMode: typeof getSelectedDuckEmailGenerationMode === 'function'
-      ? getSelectedDuckEmailGenerationMode()
-      : 'page',
     duckDdgToken: typeof inputDuckDdgToken !== 'undefined' && inputDuckDdgToken
       ? String(inputDuckDdgToken.value || '').trim()
       : '',
@@ -12369,9 +12364,6 @@ function applySettingsState(state) {
       selectEmailGenerator.value = 'duck';
     }
   }
-  if (typeof selectDuckEmailGenerationMode !== 'undefined' && selectDuckEmailGenerationMode) {
-    selectDuckEmailGenerationMode.value = normalizeDuckEmailGenerationMode(state?.duckEmailGenerationMode);
-  }
   if (typeof inputDuckDdgToken !== 'undefined' && inputDuckDdgToken) {
     inputDuckDdgToken.value = String(state?.duckDdgToken || '').trim();
   }
@@ -13519,18 +13511,6 @@ function getSelectedEmailGenerator() {
   return 'duck';
 }
 
-function normalizeDuckEmailGenerationMode(value = '') {
-  const normalized = String(value || '').trim().toLowerCase();
-  return ['token', 'ddg-token', 'api', 'direct'].includes(normalized) ? 'token' : 'page';
-}
-
-function getSelectedDuckEmailGenerationMode() {
-  const value = typeof selectDuckEmailGenerationMode !== 'undefined' && selectDuckEmailGenerationMode
-    ? selectDuckEmailGenerationMode.value
-    : 'page';
-  return normalizeDuckEmailGenerationMode(value);
-}
-
 function getEmailGeneratorUiCopy() {
   if (getSelectedEmailGenerator() === 'custom') {
     return getCustomMailProviderUiCopy();
@@ -14039,14 +14019,7 @@ function updateMailProviderUI() {
   if (rowEmailGenerator) {
     rowEmailGenerator.style.display = useEmailGenerator ? '' : 'none';
   }
-  const showDuckGenerationSettings = useEmailGenerator && selectedGenerator === 'duck';
-  const selectedDuckGenerationMode = typeof getSelectedDuckEmailGenerationMode === 'function'
-    ? getSelectedDuckEmailGenerationMode()
-    : 'page';
-  const showDuckDdgToken = showDuckGenerationSettings && selectedDuckGenerationMode === 'token';
-  if (typeof rowDuckEmailGenerationMode !== 'undefined' && rowDuckEmailGenerationMode) {
-    rowDuckEmailGenerationMode.style.display = showDuckGenerationSettings ? '' : 'none';
-  }
+  const showDuckDdgToken = useEmailGenerator && selectedGenerator === 'duck';
   if (typeof rowDuckDdgToken !== 'undefined' && rowDuckDdgToken) {
     rowDuckDdgToken.style.display = showDuckDdgToken ? '' : 'none';
   }
@@ -14981,7 +14954,6 @@ async function fetchGeneratedEmail(options = {}) {
         generator: selectEmailGenerator.value,
         mailProvider: selectMailProvider.value,
         mail2925Mode: getSelectedMail2925Mode(),
-        duckEmailGenerationMode: getSelectedDuckEmailGenerationMode(),
         duckDdgToken: inputDuckDdgToken ? String(inputDuckDdgToken.value || '').trim() : '',
         ...(getSelectedEmailGenerator() === CUSTOM_EMAIL_POOL_GENERATOR
           ? {
@@ -16778,12 +16750,6 @@ tempEmailLookupModeButtons.forEach((button) => {
 selectEmailGenerator.addEventListener('change', () => {
   updateMailProviderUI();
   clearRegistrationEmail({ silent: true }).catch(() => { });
-  markSettingsDirty(true);
-  saveSettings({ silent: true }).catch(() => { });
-});
-
-selectDuckEmailGenerationMode?.addEventListener('change', () => {
-  updateMailProviderUI();
   markSettingsDirty(true);
   saveSettings({ silent: true }).catch(() => { });
 });
@@ -19265,10 +19231,6 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
       }
       if (message.payload.cloudMailDomain !== undefined && inputCloudMailDomain) {
         inputCloudMailDomain.value = message.payload.cloudMailDomain || '';
-      }
-      if (message.payload.duckEmailGenerationMode !== undefined && selectDuckEmailGenerationMode) {
-        selectDuckEmailGenerationMode.value = normalizeDuckEmailGenerationMode(message.payload.duckEmailGenerationMode);
-        updateMailProviderUI();
       }
       if (message.payload.duckDdgToken !== undefined && inputDuckDdgToken) {
         inputDuckDdgToken.value = String(message.payload.duckDdgToken || '').trim();
