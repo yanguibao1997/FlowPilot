@@ -31,8 +31,6 @@
 ## 主要功能
 
 - 支持普通注册授权链路，既可以单步执行，也可以整套 `Auto` 执行。
-- 支持 Plus 模式，覆盖 `PayPal`、`无卡直绑`、`GPC` 与 `无需支付` 链路。
-- 支持 `账号接入策略`，可以在 Plus 模式下按来源选择继续走 `OAuth`，或直接导入当前 ChatGPT 已登录会话。
 - 支持 `CPA`、`SUB2API`、`Codex2API` 三种 OpenAI 来源，以及独立的 `Kiro` flow。
 - 支持邮箱注册、验证码收取、登录验证码处理、OAuth 同意页确认和平台侧账号创建。
 - 支持 `Hotmail`、`2925`、`QQ Mail`、`163 Mail`、`163 VIP Mail`、`126 Mail`、`Inbucket`、`Cloud Mail`、`YYDS Mail`、`iCloud` 等收码方式。

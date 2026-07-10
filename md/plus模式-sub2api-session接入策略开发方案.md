@@ -95,10 +95,10 @@
 - `confirm-oauth`
 - `platform-verify`
 
-不同 Plus 支付方式的接入锚点也不同：
+不同暂存 Plus 支付方式的接入锚点也不同：
 
 - PayPal：接在 `plus-checkout-return` 后
-- GPC：接在 `plus-checkout-billing` 后
+- 无卡直绑：接在 `paypal-hosted-review` 后
 
 因此本次改造不能说“替换第 10 步”，必须说：
 
@@ -303,7 +303,7 @@
 尤其要覆盖：
 
 - Plus 手动确认弹窗
-- GPC 支付完成后的 toast
+- 无卡直绑支付完成后的 toast
 - Plus 模式切换日志
 
 ## 5.4 步骤与节点设计
@@ -340,7 +340,7 @@
 Session 导入策略生效时，替换锚点如下：
 
 - PayPal：`plus-checkout-return` 后接 `sub2api-session-import`
-- GPC：`plus-checkout-billing` 后接 `sub2api-session-import`
+- 无卡直绑：`paypal-hosted-review` 后接 `sub2api-session-import`
 
 因此这次不是“替换 platform-verify”，而是：
 
@@ -861,7 +861,7 @@ session strategy 下这些逻辑全部不适用。
 ### 完成标准
 
 1. `plusAccountAccessStrategy` 被纳入步骤定义选项
-2. PayPal / GPC 两条 Plus 支付前缀链路，以及无需支付前缀，都能在正确锚点接入 `sub2api-session-import`
+2. PayPal / 无卡直绑两条 Plus 支付前缀链路，以及无需支付前缀，都能在正确锚点接入 `sub2api-session-import`
 3. session strategy 下不再出现：
    - `oauth-login`
    - `fetch-login-code`
@@ -971,7 +971,7 @@ session strategy 下这些逻辑全部不适用。
 
 1. 检查所有新增测试都不是基于固定步号，而是基于动态 step key / last step 推导
 2. 检查 `sub2api`、`cpa`、`codex2api` 三种 target 都覆盖到
-3. 检查 `paypal / paypal-hosted / gpc-helper / none` 四种 Plus 支付方式都覆盖到
+3. 检查 `paypal / paypal-hosted / none` 三种暂存 Plus 支付方式都覆盖到
 4. 检查 session strategy 下没有任何测试仍假设最后节点是 `platform-verify`
 5. 检查断言文案和快照没有乱码
 
