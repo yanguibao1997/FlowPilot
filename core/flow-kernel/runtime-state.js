@@ -51,8 +51,6 @@
         'plusBillingAddress',
         'plusPaypalApprovedAt',
         'plusReturnUrl',
-        'gpcPageStatus',
-        'gpcPageStatusText',
       ]),
       phoneVerification: Object.freeze([
         'currentPhoneActivation',

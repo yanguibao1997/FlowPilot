@@ -31,7 +31,6 @@ test('step definitions module exposes ordered normal and Plus step metadata', ()
     phoneSignupReloginAfterBindEmailEnabled: true,
   });
   const legacyPaymentSteps = api.getSteps({ plusModeEnabled: true, plusPaymentMethod: 'gopay' });
-  const gpcSteps = api.getSteps({ plusModeEnabled: true, plusPaymentMethod: 'gpc-helper' });
   const kiroSteps = api.getSteps({ activeFlowId: 'kiro' });
   const grokSteps = api.getSteps({ activeFlowId: 'grok' });
 
@@ -299,28 +298,6 @@ test('step definitions module exposes ordered normal and Plus step metadata', ()
     api.getLastStepId({ plusModeEnabled: true, plusPaymentMethod: 'paypal' })
   );
 
-  assert.deepStrictEqual(
-    gpcSteps.map((step) => step.key),
-    [
-      'open-chatgpt',
-      'submit-signup-email',
-      'fill-password',
-      'fetch-signup-code',
-      'fill-profile',
-      'wait-registration-success',
-      'plus-checkout-create',
-      'plus-checkout-billing',
-      'oauth-login',
-      'fetch-login-code',
-      'post-login-phone-verification',
-      'confirm-oauth',
-      'platform-verify',
-    ]
-  );
-  assert.deepStrictEqual(api.getStepIds({ plusModeEnabled: true, plusPaymentMethod: 'gpc-helper' }), [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13]);
-  assert.equal(api.getLastStepId({ plusModeEnabled: true, plusPaymentMethod: 'gpc-helper' }), 13);
-  assert.equal(gpcSteps[6].title, '打开 GPC 页面并准备');
-  assert.equal(gpcSteps[7].title, '启动并等待 GPC 完成');
 });
 
 test('Plus no-payment mode removes only payment chain nodes', () => {
@@ -583,16 +560,6 @@ test('Plus session strategy swaps the OAuth tail for a single SUB2API import nod
       previousNodeId: 'paypal-hosted-review',
       expectedStepIds: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12],
     },
-    {
-      label: 'gpc-helper',
-      options: {
-        plusModeEnabled: true,
-        plusPaymentMethod: 'gpc-helper',
-        plusAccountAccessStrategy: 'sub2api_codex_session',
-      },
-      previousNodeId: 'plus-checkout-billing',
-      expectedStepIds: [1, 2, 3, 4, 5, 6, 7, 8, 9],
-    },
   ].forEach(({ label, options, previousNodeId, expectedStepIds }) => {
     const steps = api.getSteps(options);
     const nodes = api.getNodes(options);
@@ -664,16 +631,6 @@ test('Plus session strategy swaps the OAuth tail for a single CPA import node', 
       previousNodeId: 'paypal-hosted-review',
       expectedStepIds: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12],
     },
-    {
-      label: 'gpc-helper',
-      options: {
-        plusModeEnabled: true,
-        plusPaymentMethod: 'gpc-helper',
-        plusAccountAccessStrategy: 'cpa_codex_session',
-      },
-      previousNodeId: 'plus-checkout-billing',
-      expectedStepIds: [1, 2, 3, 4, 5, 6, 7, 8, 9],
-    },
   ].forEach(({ label, options, previousNodeId, expectedStepIds }) => {
     const steps = api.getSteps(options);
     const nodes = api.getNodes(options);
@@ -707,22 +664,18 @@ test('sidepanel html loads shared step definitions before sidepanel bootstrap', 
   assert.ok(definitionsIndex < sidepanelIndex);
 });
 
-test('sidepanel html exposes Plus mode, PayPal, no-payment, and GPC settings', () => {
+test('sidepanel html hides Plus mode and keeps dormant supported payment settings', () => {
   const html = fs.readFileSync('sidepanel/sidepanel.html', 'utf8');
   const visibleHtml = stripHtmlComments(html);
   const plusPaymentSelect = getSelectMarkup(visibleHtml, 'select-plus-payment-method');
-  assert.match(html, /id="input-plus-mode-enabled"/);
+  assert.match(html, /id="row-plus-mode" style="display:none;"/);
+  assert.match(html, /id="input-plus-mode-enabled" disabled/);
   assert.match(html, /id="select-plus-payment-method"/);
-  assert.match(plusPaymentSelect, /<option value="plus-auto" selected>Plus 自动充值<\/option>/);
   assert.match(html, /<option value="none">无需支付<\/option>/);
+  assert.match(html, /<option value="paypal-hosted">PayPal 无卡直绑<\/option>/);
+  assert.match(html, /<option value="paypal" selected>PayPal<\/option>/);
   assert.match(html, /id="select-paypal-account"/);
   assert.match(html, /id="btn-add-paypal-account"/);
-  assert.match(html, /<option value="plus-auto" selected>Plus 自动充值<\/option>/);
-  assert.match(html, /id="btn-gpc-card-key-purchase"/);
-  assert.match(html, /id="btn-gpc-card-key-query"/);
-  assert.match(html, />购买卡密</);
-  assert.match(html, />查询</);
-  assert.match(html, /GPC 卡密/);
-  assert.match(html, /id="input-gpc-card-key"/);
+  assert.doesNotMatch(plusPaymentSelect, /gpc-helper|plus-auto/);
   assert.match(html, /id="shared-form-modal"/);
 });

@@ -53,8 +53,7 @@ function extractFunction(name) {
 function buildHarness(capabilityStateSource, stateSource) {
   return new Function(`
 const PLUS_PAYMENT_METHOD_PAYPAL = 'paypal';
-const PLUS_PAYMENT_METHOD_GPC_HELPER = 'gpc-helper';
-const DEFAULT_PLUS_PAYMENT_METHOD = 'gpc-helper';
+const DEFAULT_PLUS_PAYMENT_METHOD = 'paypal';
 const PLUS_ACCOUNT_ACCESS_STRATEGY_OAUTH = 'oauth';
 const PLUS_ACCOUNT_ACCESS_STRATEGY_SUB2API_CODEX_SESSION = 'sub2api_codex_session';
 const PLUS_ACCOUNT_ACCESS_STRATEGY_CPA_CODEX_SESSION = 'cpa_codex_session';
@@ -64,7 +63,7 @@ ${extractFunction('getRequestedPlusAccountAccessStrategy')}
 ${extractFunction('updatePlusModeUI')}
 function normalizePlusPaymentMethod(value = '') {
   const normalized = String(value || '').trim().toLowerCase();
-  return normalized === 'gpc-helper' ? normalized : 'paypal';
+  return normalized === 'paypal-hosted' || normalized === 'none' ? normalized : 'paypal';
 }
 function getSelectedPlusPaymentMethod() {
   return normalizePlusPaymentMethod(selectPlusPaymentMethod.value || latestState?.plusPaymentMethod || currentPlusPaymentMethod || DEFAULT_PLUS_PAYMENT_METHOD);
@@ -263,7 +262,7 @@ let currentPhoneVerificationEnabled = false;
 let currentPhoneSignupReloginAfterBindEmailEnabled = false;
 let currentStepDefinitionFlowId = 'openai';
 const DEFAULT_ACTIVE_FLOW_ID = 'openai';
-const DEFAULT_PLUS_PAYMENT_METHOD = 'gpc-helper';
+const DEFAULT_PLUS_PAYMENT_METHOD = 'paypal';
 const DEFAULT_PLUS_ACCOUNT_ACCESS_STRATEGY = 'oauth';
 const DEFAULT_SIGNUP_METHOD = 'email';
 let stepDefinitions = [];

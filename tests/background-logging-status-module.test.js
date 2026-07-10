@@ -48,10 +48,6 @@ test('logging/status add-phone detection ignores step 2 phone-entry switch failu
   assert.equal(loggingStatus.getLoginAuthStateLabel('oauth_consent_page'), 'OAuth 授权页');
   assert.equal(loggingStatus.getLoginAuthStateLabel('choose_account_page'), 'OpenAI choose account page');
   assert.equal(
-    loggingStatus.getErrorMessage(new Error('GPC_PAGE_FLOW_ENDED::步骤 7：GPC 页面等待超时，未检测到订阅完成。')),
-    '步骤 7：GPC 页面等待超时，未检测到订阅完成。'
-  );
-  assert.equal(
     loggingStatus.isKiroProxyFailure('Kiro 注册页出现 AWS 请求异常，通常是当前代理 IP 或出口区域异常，请先切换代理后再重试。'),
     true
   );

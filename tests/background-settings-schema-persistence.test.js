@@ -115,7 +115,7 @@ const PERSISTED_SETTING_DEFAULTS = {
   targetId: 'cpa',
   signupMethod: 'email',
   plusModeEnabled: false,
-  plusPaymentMethod: 'gpc-helper',
+  plusPaymentMethod: 'paypal',
   plusAccountAccessStrategy: 'oauth',
   phoneVerificationEnabled: false,
   mailProvider: '163',
@@ -174,7 +174,7 @@ function normalizeSignupMethod(value = '') {
 }
 function normalizePlusPaymentMethod(value = '') {
   const normalized = String(value || '').trim().toLowerCase();
-  return normalized === 'gpc-helper' ? normalized : 'paypal';
+  return normalized === 'paypal-hosted' || normalized === 'none' ? normalized : 'paypal';
 }
 ${extractFunction('normalizePlusAccountAccessStrategy')}
 function normalizeSub2ApiGroupNames(value) {

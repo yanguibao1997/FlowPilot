@@ -26,7 +26,6 @@
       hasSavedNodeProgress,
       isAddPhoneAuthFailure,
       isDuckDdgDailyLimitFailure,
-      isGpcPageFlowEndedFailure,
       isKiroProxyFailure,
       isAutoRunTimerParkedError,
       isPhoneSmsPlatformRateLimitFailure,
@@ -834,9 +833,6 @@
               && isAddPhoneAuthFailure(err);
             const blockedByPlusNonFreeTrial = typeof isPlusCheckoutNonFreeTrialFailure === 'function'
               && isPlusCheckoutNonFreeTrialFailure(err);
-            const blockedByGpcPageFlowEnded = typeof isGpcPageFlowEndedFailure === 'function'
-              ? isGpcPageFlowEndedFailure(err)
-              : /GPC_PAGE_FLOW_ENDED::/i.test(err?.message || String(err || ''));
             const blockedBySignupUserAlreadyExists = typeof isSignupUserAlreadyExistsFailure === 'function'
               && !keepSameEmailUntilAddPhone
               && isSignupUserAlreadyExistsFailure(err);
@@ -849,7 +845,6 @@
             const canRetry = !blockedByAddPhone
               && !blockedByPhoneNoSupply
               && !blockedByPlusNonFreeTrial
-              && !blockedByGpcPageFlowEnded
               && !blockedBySignupUserAlreadyExists
               && !blockedByStep4Route405
               && !blockedByKiroProxy
@@ -960,41 +955,6 @@
                 targetRun < totalRuns
                   ? `第 ${targetRun}/${totalRuns} 轮因 Plus 今日应付金额非 0 提前结束，自动流程将继续下一轮。`
                   : `第 ${targetRun}/${totalRuns} 轮因 Plus 今日应付金额非 0 提前结束，已无后续轮次，本次自动运行结束。`,
-                'warn'
-              );
-              forceFreshTabsNextRun = true;
-              break;
-            }
-
-            if (blockedByGpcPageFlowEnded) {
-              roundSummary.status = 'failed';
-              roundSummary.finalFailureReason = reason;
-              await setState({
-                autoRunRoundSummaries: serializeAutoRunRoundSummaries(totalRuns, roundSummaries),
-              });
-              await appendRoundRecord('failed', reason, err);
-              cancelPendingCommands('当前轮因 GPC 页面流程已结束。');
-              await broadcastStopToContentScripts();
-              if (!autoRunSkipFailures) {
-                await addLog(
-                  `第 ${targetRun}/${totalRuns} 轮 GPC 页面流程已结束，自动重试未开启，当前自动运行将停止。`,
-                  'warn'
-                );
-                stoppedEarly = true;
-                await broadcastAutoRunStatus('stopped', {
-                  currentRun: targetRun,
-                  totalRuns,
-                  attemptRun,
-                  sessionId: 0,
-                });
-                break;
-              }
-
-              await addLog(`第 ${targetRun}/${totalRuns} 轮 GPC 页面流程已结束，本轮将直接失败并跳过剩余重试。`, 'warn');
-              await addLog(
-                targetRun < totalRuns
-                  ? `第 ${targetRun}/${totalRuns} 轮因 GPC 页面流程结束提前结束，自动流程将继续下一轮。`
-                  : `第 ${targetRun}/${totalRuns} 轮因 GPC 页面流程结束提前结束，已无后续轮次，本次自动运行结束。`,
                 'warn'
               );
               forceFreshTabsNextRun = true;

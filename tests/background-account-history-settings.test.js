@@ -50,8 +50,8 @@ function extractFunction(name) {
   return source.slice(start, end);
 }
 
-test('background defaults Plus payment method to Auto', () => {
-  assert.match(source, /const DEFAULT_PLUS_PAYMENT_METHOD = PLUS_PAYMENT_METHOD_AUTO;/);
+test('background defaults dormant Plus payment method to PayPal', () => {
+  assert.match(source, /const DEFAULT_PLUS_PAYMENT_METHOD = PLUS_PAYMENT_METHOD_PAYPAL;/);
   assert.match(source, /plusPaymentMethod: DEFAULT_PLUS_PAYMENT_METHOD/);
 });
 
@@ -142,7 +142,6 @@ const SIGNUP_METHOD_PHONE = 'phone';
 const DEFAULT_SIGNUP_METHOD = SIGNUP_METHOD_EMAIL;
 const DEFAULT_ACTIVE_FLOW_ID = 'openai';
 const PLUS_PAYMENT_METHOD_PAYPAL = 'paypal';
-const PLUS_PAYMENT_METHOD_GPC_HELPER = 'gpc-helper';
 const PLUS_ACCOUNT_ACCESS_STRATEGY_OAUTH = 'oauth';
 const PLUS_ACCOUNT_ACCESS_STRATEGY_SUB2API_CODEX_SESSION = 'sub2api_codex_session';
 const PLUS_ACCOUNT_ACCESS_STRATEGY_CPA_CODEX_SESSION = 'cpa_codex_session';
@@ -185,25 +184,10 @@ const self = {
       return normalizedTargetId === 'kiro-rs' ? normalizedTargetId : fallback;
     },
   },
-  GpcUtils: {
-    normalizeGpcBaseUrl(value) {
-      return String(value || 'https://gpc.qlhazycoder.top')
-        .trim()
-        .replace(/\\/+$/g, '')
-        .replace(/\\/api\\/checkout\\/start$/i, '')
-        .replace(/\\/api\\/web\\/card\\/balance(?:\\?.*)?$/i, '')
-        .replace(/\\/api\\/card\\/balance(?:\\?.*)?$/i, '')
-        || 'https://gpc.qlhazycoder.top';
-    },
-    normalizeGpcCardKey(value) {
-      return String(value || '').trim().toUpperCase();
-    },
-  },
 };
 const PERSISTED_SETTING_DEFAULTS = {
   uiLanguage: 'auto',
   autoStepDelaySeconds: null,
-  gpcBaseUrl: 'https://gpc.qlhazycoder.top',
   mailProvider: '163',
   heroSmsMinPrice: '',
   fiveSimMinPrice: '',
@@ -243,27 +227,12 @@ return {
   assert.equal(api.normalizePersistentSettingValue('phoneSignupReloginAfterBindEmailEnabled', 1), true);
   assert.equal(api.normalizePersistentSettingValue('phoneSignupReloginAfterBindEmailEnabled', 0), false);
   assert.equal(api.normalizePersistentSettingValue('plusPaymentMethod', 'gopay'), 'paypal');
-  assert.equal(api.normalizePersistentSettingValue('plusPaymentMethod', 'gpc-helper'), 'gpc-helper');
   assert.equal(api.normalizePersistentSettingValue('plusPaymentMethod', 'paypal-hosted'), 'paypal-hosted');
   assert.equal(api.normalizePersistentSettingValue('plusPaymentMethod', 'paypal'), 'paypal');
   assert.equal(api.normalizePersistentSettingValue('plusPaymentMethod', 'unknown'), 'paypal');
   assert.equal(api.normalizePersistentSettingValue('plusAccountAccessStrategy', 'sub2api_codex_session'), 'sub2api_codex_session');
   assert.equal(api.normalizePersistentSettingValue('plusAccountAccessStrategy', 'cpa_codex_session'), 'cpa_codex_session');
   assert.equal(api.normalizePersistentSettingValue('plusAccountAccessStrategy', 'unknown'), 'oauth');
-  assert.equal(
-    api.normalizePersistentSettingValue('gpcBaseUrl', ' https://gpc.qlhazycoder.top/api/checkout/start '),
-    'https://gpc.qlhazycoder.top'
-  );
-  assert.equal(
-    api.normalizePersistentSettingValue('gpcBaseUrl', ' https://gpc.qlhazycoder.top/api/web/card/balance?card_key=old '),
-    'https://gpc.qlhazycoder.top'
-  );
-  assert.equal(api.normalizePersistentSettingValue('gpcBaseUrl', ''), 'https://gpc.qlhazycoder.top');
-  assert.equal(api.normalizePersistentSettingValue('gpcCardKey', ' gpc-6c9f1a32-45734795-914e6f00 '), 'GPC-6C9F1A32-45734795-914E6F00');
-  assert.equal(api.normalizePersistentSettingValue('gpcRemainingUses', '998'), 998);
-  assert.equal(api.normalizePersistentSettingValue('gpcCardStatus', ' active '), 'active');
-  assert.equal(api.normalizePersistentSettingValue('gpcPageStatus', ' running '), 'running');
-  assert.equal(api.normalizePersistentSettingValue('gpcPageStatusText', ' 页面启动 '), '页面启动');
   assert.equal(api.normalizePersistentSettingValue('verificationResendCount', '7'), 7);
   assert.equal(api.normalizePersistentSettingValue('verificationResendCount', '-1'), 0);
   assert.equal(api.normalizePersistentSettingValue('phoneVerificationReplacementLimit', '9'), 9);

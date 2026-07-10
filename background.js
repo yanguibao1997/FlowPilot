@@ -20,7 +20,6 @@ importScripts(
   'managed-alias-utils.js',
   'mail2925-utils.js',
   'paypal-utils.js',
-  'gpc-utils.js',
   'phone-sms/providers/hero-sms.js',
   'phone-sms/providers/five-sim.js',
   'phone-sms/providers/nexsms.js',
@@ -180,36 +179,6 @@ const PLUS_PAYPAL_HOSTED_CHECKOUT_PHONE_BOUND_EMAIL_RELOGIN_STEP_DEFINITIONS = s
   signupMethod: 'phone',
   phoneSignupReloginAfterBindEmailEnabled: true,
 }) || PLUS_PAYPAL_HOSTED_CHECKOUT_PHONE_STEP_DEFINITIONS;
-const PLUS_GPC_STEP_DEFINITIONS = self.MultiPageStepDefinitions?.getSteps?.({
-  activeFlowId: DEFAULT_ACTIVE_FLOW_ID,
-  plusModeEnabled: true,
-  plusPaymentMethod: 'gpc-helper',
-}) || PLUS_PAYPAL_STEP_DEFINITIONS;
-const PLUS_GPC_SUB2API_SESSION_STEP_DEFINITIONS = self.MultiPageStepDefinitions?.getSteps?.({
-  activeFlowId: DEFAULT_ACTIVE_FLOW_ID,
-  plusModeEnabled: true,
-  plusPaymentMethod: 'gpc-helper',
-  plusAccountAccessStrategy: PLUS_ACCOUNT_ACCESS_STRATEGY_SUB2API_CODEX_SESSION,
-}) || PLUS_GPC_STEP_DEFINITIONS;
-const PLUS_GPC_CPA_SESSION_STEP_DEFINITIONS = self.MultiPageStepDefinitions?.getSteps?.({
-  activeFlowId: DEFAULT_ACTIVE_FLOW_ID,
-  plusModeEnabled: true,
-  plusPaymentMethod: 'gpc-helper',
-  plusAccountAccessStrategy: PLUS_ACCOUNT_ACCESS_STRATEGY_CPA_CODEX_SESSION,
-}) || PLUS_GPC_STEP_DEFINITIONS;
-const PLUS_GPC_PHONE_STEP_DEFINITIONS = self.MultiPageStepDefinitions?.getSteps?.({
-  activeFlowId: DEFAULT_ACTIVE_FLOW_ID,
-  plusModeEnabled: true,
-  plusPaymentMethod: 'gpc-helper',
-  signupMethod: 'phone',
-}) || PLUS_GPC_STEP_DEFINITIONS;
-const PLUS_GPC_PHONE_BOUND_EMAIL_RELOGIN_STEP_DEFINITIONS = self.MultiPageStepDefinitions?.getSteps?.({
-  activeFlowId: DEFAULT_ACTIVE_FLOW_ID,
-  plusModeEnabled: true,
-  plusPaymentMethod: 'gpc-helper',
-  signupMethod: 'phone',
-  phoneSignupReloginAfterBindEmailEnabled: true,
-}) || PLUS_GPC_PHONE_STEP_DEFINITIONS;
 const PLUS_STEP_DEFINITIONS = PLUS_PAYPAL_STEP_DEFINITIONS;
 const REGISTERED_STEP_FLOW_IDS = self.MultiPageStepDefinitions?.getRegisteredFlowIds?.() || [DEFAULT_ACTIVE_FLOW_ID];
 const ALL_STEP_DEFINITIONS = (() => {
@@ -241,11 +210,6 @@ const ALL_STEP_DEFINITIONS = (() => {
     ...PLUS_PAYPAL_HOSTED_CHECKOUT_CPA_SESSION_STEP_DEFINITIONS,
     ...PLUS_PAYPAL_HOSTED_CHECKOUT_PHONE_STEP_DEFINITIONS,
     ...PLUS_PAYPAL_HOSTED_CHECKOUT_PHONE_BOUND_EMAIL_RELOGIN_STEP_DEFINITIONS,
-    ...PLUS_GPC_STEP_DEFINITIONS,
-    ...PLUS_GPC_SUB2API_SESSION_STEP_DEFINITIONS,
-    ...PLUS_GPC_CPA_SESSION_STEP_DEFINITIONS,
-    ...PLUS_GPC_PHONE_STEP_DEFINITIONS,
-    ...PLUS_GPC_PHONE_BOUND_EMAIL_RELOGIN_STEP_DEFINITIONS,
   ];
 })();
 const STEP_IDS = Array.from(new Set(ALL_STEP_DEFINITIONS
@@ -269,16 +233,11 @@ const PLUS_PAYPAL_HOSTED_CHECKOUT_STEP_IDS = PLUS_PAYPAL_HOSTED_CHECKOUT_STEP_DE
   .map((definition) => Number(definition?.id))
   .filter(Number.isFinite)
   .sort((left, right) => left - right);
-const PLUS_GPC_STEP_IDS = PLUS_GPC_STEP_DEFINITIONS
-  .map((definition) => Number(definition?.id))
-  .filter(Number.isFinite)
-  .sort((left, right) => left - right);
 const PLUS_STEP_IDS = PLUS_PAYPAL_STEP_IDS;
 const LAST_STEP_ID = Math.max(
   NORMAL_STEP_IDS[NORMAL_STEP_IDS.length - 1] || 10,
   PLUS_PAYPAL_STEP_IDS[PLUS_PAYPAL_STEP_IDS.length - 1] || 10,
-  PLUS_PAYPAL_HOSTED_CHECKOUT_STEP_IDS[PLUS_PAYPAL_HOSTED_CHECKOUT_STEP_IDS.length - 1] || 10,
-  PLUS_GPC_STEP_IDS[PLUS_GPC_STEP_IDS.length - 1] || 10
+  PLUS_PAYPAL_HOSTED_CHECKOUT_STEP_IDS[PLUS_PAYPAL_HOSTED_CHECKOUT_STEP_IDS.length - 1] || 10
 );
 const FINAL_OAUTH_CHAIN_START_STEP = 7;
 
@@ -565,7 +524,6 @@ const SUB2API_STEP1_RESPONSE_TIMEOUT_MS = 90000;
 const SUB2API_STEP9_RESPONSE_TIMEOUT_MS = 120000;
 const DEFAULT_SUB2API_URL = '';
 const DEFAULT_CODEX2API_URL = 'http://localhost:8080/admin/accounts';
-const DEFAULT_GPC_BASE_URL = 'https://gpc.qlhazycoder.top';
 const DEFAULT_SUB2API_GROUP_NAME = 'codex';
 const DEFAULT_SUB2API_PROXY_NAME = '';
 const DEFAULT_SUB2API_ACCOUNT_PRIORITY = 1;
@@ -637,8 +595,6 @@ const IP_PROXY_AUTO_SYNC_INTERVAL_MAX_MINUTES = 1440;
 const IP_PROXY_AUTO_SYNC_DEFAULT_INTERVAL_MINUTES = 15;
 const AUTO_RUN_RETRY_DELAY_MS = 3000;
 const AUTO_RUN_MAX_RETRIES_PER_ROUND = 3;
-const GPC_CHECKOUT_RESTART_COOLDOWN_TRIGGER_COUNT = 3;
-const GPC_CHECKOUT_RESTART_COOLDOWN_MS = 30 * 1000;
 const AUTO_STEP_DELAY_MIN_ALLOWED_SECONDS = 0;
 const AUTO_STEP_DELAY_MAX_ALLOWED_SECONDS = 600;
 const VERIFICATION_RESEND_COUNT_MIN = 0;
@@ -732,12 +688,7 @@ const FIVE_SIM_OPERATOR = DEFAULT_FIVE_SIM_OPERATOR;
 const PLUS_PAYMENT_METHOD_PAYPAL = 'paypal';
 const PLUS_PAYMENT_METHOD_PAYPAL_HOSTED = 'paypal-hosted';
 const PLUS_PAYMENT_METHOD_NONE = 'none';
-const PLUS_PAYMENT_METHOD_GPC_HELPER = 'gpc-helper';
-const PLUS_PAYMENT_METHOD_AUTO = 'plus-auto';
-const DEFAULT_PLUS_PAYMENT_METHOD = PLUS_PAYMENT_METHOD_AUTO;
-const DEFAULT_AUTO_BASE_URL = (typeof self !== 'undefined' && self.GpcUtils?.DEFAULT_AUTO_BASE_URL)
-  || 'https://auto.1iiu.com';
-const DEFAULT_AUTO_TIMEOUT_SECONDS = 900;
+const DEFAULT_PLUS_PAYMENT_METHOD = PLUS_PAYMENT_METHOD_PAYPAL;
 const DEFAULT_PLUS_HOSTED_CHECKOUT_OAUTH_DELAY_SECONDS = 3;
 const DISPLAY_TIMEZONE = 'Asia/Shanghai';
 const MICROSOFT_TOKEN_DNR_RULE_ID = 1001;
@@ -831,7 +782,7 @@ function buildFlowContributionRuntimePatch(currentRuntime = {}, flowId = DEFAULT
 }
 
 function isPlusModeState(state = {}) {
-  return Boolean(state?.plusModeEnabled);
+  return false;
 }
 
 function normalizePlusPaymentMethod(value = '') {
@@ -842,18 +793,11 @@ function normalizePlusPaymentMethod(value = '') {
   const noneValue = typeof PLUS_PAYMENT_METHOD_NONE !== 'undefined'
     ? PLUS_PAYMENT_METHOD_NONE
     : 'none';
-  if (normalized === noneValue || normalized === 'no-payment' || normalized === 'skip-payment') {
+  if (normalized === noneValue) {
     return noneValue;
   }
-  if (normalized === paypalHostedValue || normalized === 'paypal_direct' || normalized === 'paypal-direct') {
+  if (normalized === paypalHostedValue) {
     return paypalHostedValue;
-  }
-  if (normalized === PLUS_PAYMENT_METHOD_GPC_HELPER) {
-    return PLUS_PAYMENT_METHOD_GPC_HELPER;
-  }
-  const autoValue = typeof PLUS_PAYMENT_METHOD_AUTO !== 'undefined' ? PLUS_PAYMENT_METHOD_AUTO : 'plus-auto';
-  if (normalized === autoValue || normalized === 'pix' || normalized === 'pix_plus' || normalized === 'pixplus') {
-    return autoValue;
   }
   return PLUS_PAYMENT_METHOD_PAYPAL;
 }
@@ -994,21 +938,6 @@ function getStepDefinitionsForState(state = {}) {
   const paymentMethod = normalizePlusPaymentMethod(resolvedState?.plusPaymentMethod);
   const signupMethod = getSignupMethodForStepDefinitions(resolvedState);
   const plusAccountAccessStrategy = normalizePlusAccountAccessStrategy(resolvedState?.plusAccountAccessStrategy);
-  if (paymentMethod === PLUS_PAYMENT_METHOD_GPC_HELPER) {
-    if (
-      signupMethod === SIGNUP_METHOD_EMAIL
-      && plusAccountAccessStrategy === PLUS_ACCOUNT_ACCESS_STRATEGY_SUB2API_CODEX_SESSION
-    ) {
-      return applyPhoneVerificationStepVisibility(PLUS_GPC_SUB2API_SESSION_STEP_DEFINITIONS);
-    }
-    if (
-      signupMethod === SIGNUP_METHOD_EMAIL
-      && plusAccountAccessStrategy === PLUS_ACCOUNT_ACCESS_STRATEGY_CPA_CODEX_SESSION
-    ) {
-      return applyPhoneVerificationStepVisibility(PLUS_GPC_CPA_SESSION_STEP_DEFINITIONS);
-    }
-    return applyPhoneVerificationStepVisibility(PLUS_GPC_STEP_DEFINITIONS);
-  }
   if (paymentMethod === PLUS_PAYMENT_METHOD_PAYPAL_HOSTED) {
     if (signupMethod === SIGNUP_METHOD_PHONE) {
       return applyPhoneVerificationStepVisibility(Boolean(resolvedState?.phoneSignupReloginAfterBindEmailEnabled)
@@ -1050,9 +979,6 @@ function getStepIdsForState(state = {}) {
     return NORMAL_STEP_IDS;
   }
   const paymentMethod = normalizePlusPaymentMethod(state?.plusPaymentMethod);
-  if (paymentMethod === PLUS_PAYMENT_METHOD_GPC_HELPER) {
-    return PLUS_GPC_STEP_IDS;
-  }
   if (paymentMethod === PLUS_PAYMENT_METHOD_PAYPAL_HOSTED) {
     return PLUS_PAYPAL_HOSTED_CHECKOUT_STEP_IDS;
   }
@@ -1329,22 +1255,6 @@ const PERSISTED_SETTING_DEFAULTS = {
   paypalEmail: '',
   paypalPassword: '',
   currentPayPalAccountId: '',
-  gpcBaseUrl: DEFAULT_GPC_BASE_URL,
-  gpcCardKey: '',
-  gpcBalance: '',
-  gpcBalancePayload: null,
-  gpcBalanceUpdatedAt: 0,
-  gpcBalanceError: '',
-  gpcRemainingUses: 0,
-  gpcCardStatus: '',
-  gpcPageStatus: '',
-  gpcPageStatusText: '',
-  autoCdk: '',
-  autoTimeoutSeconds: DEFAULT_AUTO_TIMEOUT_SECONDS,
-  autoOrderId: '',
-  autoJobId: '',
-  autoOrderState: '',
-  autoPaymentStatus: '',
   autoRunSkipFailures: false,
   autoRunFallbackThreadIntervalMinutes: 0,
   operationDelayEnabled: true,
@@ -1548,7 +1458,6 @@ const DEFAULT_STATE = {
   autoRunAttemptRun: 0, // 当前轮次的重试序号。
   autoRunSessionId: 0,
   autoRunRoundSummaries: [], // 自动运行轮次摘要。
-  autoRunGpcCheckoutRestartCount: 0, // 当前轮次内 GPC 回退到 step 6 的累计次数。
   autoRunTimerPlan: null, // 自动运行可恢复计时计划快照。
   autoRunCountdownAt: null,
   autoRunCountdownTitle: '',
@@ -2065,10 +1974,6 @@ async function ensureResolvedSignupMethodForRun(options = {}) {
 }
 
 function normalizePlusPaymentMethod(value = '') {
-  const rootScope = typeof self !== 'undefined' ? self : globalThis;
-  if (rootScope.GpcUtils?.normalizePlusPaymentMethod) {
-    return rootScope.GpcUtils.normalizePlusPaymentMethod(value);
-  }
   const normalized = String(value || '').trim().toLowerCase();
   const paypalHostedValue = typeof PLUS_PAYMENT_METHOD_PAYPAL_HOSTED !== 'undefined'
     ? PLUS_PAYMENT_METHOD_PAYPAL_HOSTED
@@ -2076,18 +1981,11 @@ function normalizePlusPaymentMethod(value = '') {
   const noneValue = typeof PLUS_PAYMENT_METHOD_NONE !== 'undefined'
     ? PLUS_PAYMENT_METHOD_NONE
     : 'none';
-  if (normalized === noneValue || normalized === 'no-payment' || normalized === 'skip-payment') {
+  if (normalized === noneValue) {
     return noneValue;
   }
-  if (normalized === paypalHostedValue || normalized === 'paypal_direct' || normalized === 'paypal-direct') {
+  if (normalized === paypalHostedValue) {
     return paypalHostedValue;
-  }
-  if (normalized === PLUS_PAYMENT_METHOD_GPC_HELPER) {
-    return PLUS_PAYMENT_METHOD_GPC_HELPER;
-  }
-  if (typeof PLUS_PAYMENT_METHOD_AUTO !== 'undefined'
-    && (normalized === PLUS_PAYMENT_METHOD_AUTO || normalized === 'pix' || normalized === 'pix_plus' || normalized === 'pixplus')) {
-    return PLUS_PAYMENT_METHOD_AUTO;
   }
   return PLUS_PAYMENT_METHOD_PAYPAL;
 }
@@ -3392,56 +3290,6 @@ function normalizePersistentSettingValue(key, value) {
     case 'paypalPassword':
       return String(value || '');
     case 'currentPayPalAccountId':
-      return String(value || '').trim();
-    case 'gpcBaseUrl':
-      {
-        const defaultGpcBaseUrl = PERSISTED_SETTING_DEFAULTS.gpcBaseUrl
-          || (typeof DEFAULT_GPC_BASE_URL !== 'undefined' ? DEFAULT_GPC_BASE_URL : 'https://gpc.qlhazycoder.top');
-        const normalizedGpcBaseUrl = self.GpcUtils?.normalizeGpcBaseUrl
-          ? self.GpcUtils.normalizeGpcBaseUrl(value || defaultGpcBaseUrl)
-          : String(value || defaultGpcBaseUrl).trim().replace(/\/+$/g, '');
-        if (!self.GpcUtils?.normalizeGpcBaseUrl) {
-          try {
-            const parsed = new URL(normalizedGpcBaseUrl);
-            const hostname = parsed.hostname.toLowerCase();
-            if (hostname !== 'gpc.qlhazycoder.top' && hostname !== 'localhost' && hostname !== '127.0.0.1') {
-              return defaultGpcBaseUrl;
-            }
-          } catch {
-            return defaultGpcBaseUrl;
-          }
-        }
-        return normalizedGpcBaseUrl;
-      }
-    case 'gpcCardKey':
-      return self.GpcUtils?.normalizeGpcCardKey
-        ? self.GpcUtils.normalizeGpcCardKey(value)
-        : String(value || '').trim().toUpperCase();
-    case 'gpcBalance':
-    case 'gpcBalanceError':
-    case 'gpcCardStatus':
-    case 'gpcPageStatus':
-    case 'gpcPageStatusText':
-      return String(value || '').trim();
-    case 'gpcBalancePayload':
-      return value && typeof value === 'object' && !Array.isArray(value) ? value : null;
-    case 'gpcBalanceUpdatedAt':
-    case 'gpcRemainingUses':
-      return Math.max(0, Number(value) || 0);
-    case 'autoCdk':
-      return self.GpcUtils?.normalizeAutoCdk
-        ? self.GpcUtils.normalizeAutoCdk(value)
-        : String(value || '').trim();
-    case 'autoTimeoutSeconds': {
-      const numeric = Math.floor(Number(value));
-      return Number.isFinite(numeric) && numeric > 0
-        ? Math.min(3600, Math.max(30, numeric))
-        : DEFAULT_AUTO_TIMEOUT_SECONDS;
-    }
-    case 'autoOrderId':
-    case 'autoJobId':
-    case 'autoOrderState':
-    case 'autoPaymentStatus':
       return String(value || '').trim();
     case 'autoRunSkipFailures':
       return Boolean(value);
@@ -9655,7 +9503,6 @@ function getErrorMessage(error) {
     return loggingStatus.getErrorMessage(error);
   }
   return String(typeof error === 'string' ? error : error?.message || '')
-    .replace(/^GPC_PAGE_FLOW_ENDED::/i, '')
     .replace(/^AUTO_RUN_STEP_IDLE_RESTART::/i, '');
 }
 
@@ -9912,24 +9759,6 @@ function isPlusCheckoutNonFreeTrialFailure(error) {
   return /PLUS_CHECKOUT_NON_FREE_TRIAL::|今日应付金额不是\s*0|(?:没有|无|不具备)[\s:：-]*(?:免费\s*|Plus\s*)?试用资格|更换有试用资格的账号\s*Token|not\s+eligible\s+for\s+(?:a\s+)?Plus\s+trial|no\s+Plus\s+trial\s+eligibility|该账号已经开通过\s*ChatGPT\s*订阅套餐，不能重复订阅(?:。)?(?:（\s*checkout_order\s*）|\(\s*checkout_order\s*\))?/i.test(message);
 }
 
-function isGpcPageFlowEndedFailure(error) {
-  const message = String(typeof error === 'string' ? error : error?.message || '');
-  return /GPC_PAGE_FLOW_ENDED::/i.test(message);
-}
-
-function isGpcCheckoutRestartRequiredFailure(error) {
-  const rawMessage = String(typeof error === 'string' ? error : error?.message || '');
-  const message = getErrorMessage(error);
-  const combinedMessage = `${rawMessage}\n${message}`;
-  if (isPlusCheckoutNonFreeTrialFailure(combinedMessage)) {
-    return false;
-  }
-  if (/GPC_PAGE_FLOW_ENDED::/i.test(rawMessage)) {
-    return true;
-  }
-  return /GPC\s*页面[\s\S]*(?:请重新准备|请求超时|超时|timeout|timed\s*out|卡死|无响应|失败|未检测到订阅完成|已尝试启动)|步骤\s*[67][\s\S]*GPC[\s\S]*(?:页面|请求超时|超时|timeout|timed\s*out|卡死|无响应|失败)|account\s+already\s+linked|(?:账号|账户)[\s\S]*(?:已绑定|已经绑定|已绑|绑了订阅|绑定了订阅)/i.test(message);
-}
-
 function isPlusCheckoutRestartStep(step, stepExecutionKey = '', state = {}) {
   const normalizedKey = String(stepExecutionKey || '').trim();
   return normalizedKey === 'plus-checkout-create'
@@ -10088,8 +9917,6 @@ function getDownstreamStateResets(step, state = {}) {
     plusBillingAddress: null,
     plusPaypalApprovedAt: null,
     plusReturnUrl: '',
-    gpcPageStatus: '',
-    gpcPageStatusText: '',
   };
   const oauthRuntimeResets = {
     oauthUrl: null,
@@ -10227,8 +10054,6 @@ function getDownstreamStateResets(step, state = {}) {
         plusBillingAddress: null,
         plusPaypalApprovedAt: null,
         plusReturnUrl: '',
-        gpcPageStatus: '',
-        gpcPageStatusText: '',
       } : {}),
       ...(isApprovalNode ? {
         plusPaypalApprovedAt: null,
@@ -12609,146 +12434,6 @@ async function maybeSwitchIpProxyAfterAutoRunRoundSuccess(payload = {}) {
   return switchResult;
 }
 
-function resolveGpcBaseUrl(apiUrl = '') {
-  if (self.GpcUtils?.normalizeGpcBaseUrl) {
-    return self.GpcUtils.normalizeGpcBaseUrl(apiUrl || DEFAULT_GPC_BASE_URL);
-  }
-  let normalized = String(apiUrl || DEFAULT_GPC_BASE_URL).trim().replace(/\/+$/g, '');
-  normalized = normalized.replace(/\/api\/checkout\/start$/i, '');
-  normalized = normalized.replace(/\/api\/web\/card\/balance(?:\?.*)?$/i, '');
-  normalized = normalized.replace(/\/api\/card\/balance(?:\?.*)?$/i, '');
-  return normalized || DEFAULT_GPC_BASE_URL;
-}
-
-function normalizeGpcCardKey(value = '') {
-  if (self.GpcUtils?.normalizeGpcCardKey) {
-    return self.GpcUtils.normalizeGpcCardKey(value);
-  }
-  return String(value || '').trim().toUpperCase();
-}
-
-function isGpcCardKeyFormat(value = '') {
-  if (self.GpcUtils?.isGpcCardKeyFormat) {
-    return self.GpcUtils.isGpcCardKeyFormat(value);
-  }
-  return /^GPC-[A-F0-9]{8}-[A-F0-9]{8}-[A-F0-9]{8}$/.test(normalizeGpcCardKey(value));
-}
-
-function buildGpcCardBalanceRequestUrl(apiUrl = '', cardKey = '') {
-  if (self.GpcUtils?.buildGpcCardBalanceUrl) {
-    return self.GpcUtils.buildGpcCardBalanceUrl(apiUrl, cardKey);
-  }
-  const baseUrl = resolveGpcBaseUrl(apiUrl);
-  if (!baseUrl) {
-    return '';
-  }
-  const normalizedCardKey = normalizeGpcCardKey(cardKey);
-  return `${baseUrl}/api/web/card/balance${normalizedCardKey ? `?card_key=${encodeURIComponent(normalizedCardKey)}` : ''}`;
-}
-
-function formatGpcCardBalancePayload(payload = {}) {
-  if (self.GpcUtils?.formatGpcBalancePayload) {
-    return self.GpcUtils.formatGpcBalancePayload(payload);
-  }
-  if (!payload || typeof payload !== 'object') {
-    return '';
-  }
-  const remaining = payload.remaining_uses ?? payload.remainingUses ?? payload.balance ?? payload.remaining;
-  const total = payload.total_uses ?? payload.totalUses;
-  const used = payload.used_uses ?? payload.usedUses;
-  const status = String(payload.card_status || payload.cardStatus || payload.status || '').trim();
-  return [
-    remaining !== undefined && remaining !== null && String(remaining).trim() !== ''
-      ? (total !== undefined && total !== null && String(total).trim() !== '' ? `余额 ${remaining}/${total}` : `余额 ${remaining}`)
-      : '',
-    used !== undefined && used !== null && String(used).trim() !== '' ? `已用 ${used}` : '',
-    status ? `状态 ${status}` : '',
-  ].filter(Boolean).join('，');
-}
-
-async function refreshGpcCardBalance(state = {}, options = {}) {
-  const apiUrl = resolveGpcBaseUrl(state?.gpcBaseUrl || DEFAULT_GPC_BASE_URL);
-  const cardKey = normalizeGpcCardKey(state?.gpcCardKey || state?.cardKey || '');
-  if (!apiUrl) {
-    throw new Error('缺少 GPC 页面地址。');
-  }
-  if (!cardKey) {
-    throw new Error('缺少 GPC 卡密。');
-  }
-  if (!isGpcCardKeyFormat(cardKey)) {
-    throw new Error('GPC 卡密格式不正确，应类似 GPC-6C9F1A32-45734795-914E6F00。');
-  }
-  const requestUrl = buildGpcCardBalanceRequestUrl(apiUrl, cardKey);
-  if (!requestUrl) {
-    throw new Error('缺少 GPC 卡密查询接口。');
-  }
-
-  const response = await fetch(requestUrl, {
-    method: 'GET',
-    headers: { Accept: 'application/json' },
-  });
-  const rawText = await response.text();
-  let payload = {};
-  try {
-    payload = rawText ? JSON.parse(rawText) : {};
-  } catch {
-    payload = { raw: rawText };
-  }
-  const balancePayload = self.GpcUtils?.unwrapGpcResponse
-    ? self.GpcUtils.unwrapGpcResponse(payload)
-    : (payload?.data && typeof payload === 'object' ? payload.data : payload);
-  const balanceData = balancePayload && typeof balancePayload === 'object' && !Array.isArray(balancePayload)
-    ? balancePayload
-    : {};
-  const remainingUses = self.GpcUtils?.getGpcBalanceRemainingUses
-    ? self.GpcUtils.getGpcBalanceRemainingUses(balanceData)
-    : Math.max(0, Number(balanceData.remaining_uses ?? balanceData.remainingUses ?? balanceData.balance ?? balanceData.remaining) || 0);
-  const cardStatus = self.GpcUtils?.getGpcCardStatus
-    ? self.GpcUtils.getGpcCardStatus(balanceData)
-    : String(balanceData.status || balanceData.card_status || balanceData.cardStatus || '').trim();
-  const balanceText = formatGpcCardBalancePayload(payload) || rawText || '未知';
-  const updates = {
-    gpcCardKey: cardKey,
-    gpcBalance: balanceText,
-    gpcBalancePayload: Object.keys(balanceData).length > 0 ? balanceData : { raw: String(balancePayload || '') },
-    gpcBalanceUpdatedAt: Date.now(),
-    gpcBalanceError: '',
-    gpcRemainingUses: Math.max(0, Number(remainingUses) || 0),
-    gpcCardStatus: cardStatus,
-  };
-
-  const unifiedOk = self.GpcUtils?.isGpcUnifiedResponseOk
-    ? self.GpcUtils.isGpcUnifiedResponseOk(payload)
-    : true;
-  if (!response.ok || payload?.ok === false || !unifiedOk) {
-    const detail = self.GpcUtils?.extractGpcResponseErrorDetail
-      ? self.GpcUtils.extractGpcResponseErrorDetail(payload, response.status)
-      : (payload?.data?.detail || payload?.error || payload?.message || payload?.detail || `HTTP ${response.status}`);
-    const errorUpdates = { ...updates, gpcBalanceError: String(detail || 'GPC 卡密查询失败') };
-    await setPersistentSettings(errorUpdates);
-    broadcastDataUpdate(errorUpdates);
-    throw new Error(String(detail || 'GPC 卡密查询失败'));
-  }
-
-  await setPersistentSettings(updates);
-  broadcastDataUpdate(updates);
-  const reason = String(options?.reason || '').trim();
-  await addLog(
-    reason === 'round_success'
-      ? `GPC 卡密剩余次数已更新：${balanceText}`
-      : `GPC 卡密查询成功：${balanceText}`,
-    'info'
-  );
-  return {
-    balance: balanceText,
-    payload,
-    data: updates.gpcBalancePayload,
-    remainingUses: updates.gpcRemainingUses,
-    cardStatus: updates.gpcCardStatus,
-    updatedAt: updates.gpcBalanceUpdatedAt,
-  };
-}
-
 const autoRunController = self.MultiPageBackgroundAutoRunController?.createAutoRunController({
   addLog,
   appendAccountRunRecord: (...args) => appendAndBroadcastAccountRunRecord(...args),
@@ -12776,7 +12461,6 @@ const autoRunController = self.MultiPageBackgroundAutoRunController?.createAutoR
   isPhoneSmsPlatformRateLimitFailure,
   isPlusCheckoutNonFreeTrialFailure,
   isAutoRunTimerParkedError,
-  isGpcPageFlowEndedFailure,
   isDuckDdgDailyLimitFailure,
   isKiroProxyFailure,
   isRestartCurrentAttemptError,
@@ -13205,42 +12889,10 @@ async function runAutoSequenceFromNodeGraph(startNodeId, context = {}) {
   let plusCheckoutRestartCount = 0;
   let step4RestartCount = 0;
   let emailSignupPhoneVerificationRestartCount = 0;
-  const normalizeAutoRunGpcCheckoutRestartCount = (value) => {
-    const normalizedCount = Math.floor(Number(value) || 0);
-    return normalizedCount > 0 ? normalizedCount : 0;
-  };
-  let gpcCheckoutRestartCount = 0;
-  const setAutoRunGpcCheckoutRestartCount = async (value) => {
-    const normalizedCount = normalizeAutoRunGpcCheckoutRestartCount(value);
-    if (gpcCheckoutRestartCount === normalizedCount) {
-      return normalizedCount;
-    }
-    gpcCheckoutRestartCount = normalizedCount;
-    await setState({ autoRunGpcCheckoutRestartCount: normalizedCount });
-    return normalizedCount;
-  };
-  const initialAutoRunState = await getState();
-  const initialPersistedGpcCheckoutRestartCount = normalizeAutoRunGpcCheckoutRestartCount(
-    initialAutoRunState?.autoRunGpcCheckoutRestartCount
-  );
-  gpcCheckoutRestartCount = continued ? initialPersistedGpcCheckoutRestartCount : 0;
-  if (!continued && initialPersistedGpcCheckoutRestartCount > 0) {
-    await setState({ autoRunGpcCheckoutRestartCount: 0 });
-  }
   const nodeIdleRestartCounts = new Map();
   let currentStartNodeId = String(startNodeId || '').trim();
   let continueCurrentAttempt = continued;
   const resolvedSignupMethod = await ensureResolvedSignupMethodForRun();
-  const normalizePlusPaymentMethodForRun = typeof normalizePlusPaymentMethod === 'function'
-    ? normalizePlusPaymentMethod
-    : (value) => (String(value || '').trim().toLowerCase() === 'gpc-helper' ? 'gpc-helper' : String(value || '').trim().toLowerCase());
-  const plusPaymentMethodGpcHelper = typeof PLUS_PAYMENT_METHOD_GPC_HELPER === 'string'
-    ? PLUS_PAYMENT_METHOD_GPC_HELPER
-    : 'gpc-helper';
-  const isGpcCheckoutState = (state = {}) => (
-    normalizePlusPaymentMethodForRun(state?.plusPaymentMethod) === plusPaymentMethodGpcHelper
-    || String(state?.plusCheckoutSource || '').trim() === plusPaymentMethodGpcHelper
-  );
   const getNodeStatusForNode = (state, nodeId) => (
     String(state?.nodeStatuses?.[nodeId] || 'pending').trim() || 'pending'
   );
@@ -13320,43 +12972,6 @@ async function runAutoSequenceFromNodeGraph(startNodeId, context = {}) {
       return invalidateDownstreamAfterStepRestart(step, options);
     }
     return undefined;
-  };
-  const parkAutoRunCurrentAttemptByTimer = async (options = {}) => {
-    const {
-      currentRun = targetRun,
-      totalRunsForPlan = totalRuns,
-      attemptRunForPlan = attemptRuns,
-      countdownTitle = '',
-      countdownNote = '',
-      logMessage = '',
-      extraState = {},
-    } = options && typeof options === 'object' ? options : {};
-    const sessionIdForPlan = Math.max(
-      0,
-      Math.floor(Number(typeof autoRunSessionId !== 'undefined' ? autoRunSessionId : 0) || 0)
-    );
-    if (typeof persistAutoRunTimerPlan === 'function') {
-      const latestStateForPlan = await getState();
-      await persistAutoRunTimerPlan({
-        kind: AUTO_RUN_TIMER_KIND_BEFORE_RETRY,
-        fireAt: Date.now() + GPC_CHECKOUT_RESTART_COOLDOWN_MS,
-        mode: 'continue',
-        currentRun,
-        totalRuns: totalRunsForPlan,
-        attemptRun: attemptRunForPlan,
-        autoRunSessionId: sessionIdForPlan,
-        autoRunSkipFailures: Boolean(latestStateForPlan.autoRunSkipFailures),
-        roundSummaries: Array.isArray(latestStateForPlan.autoRunRoundSummaries)
-          ? latestStateForPlan.autoRunRoundSummaries
-          : [],
-        countdownTitle: countdownTitle || 'GPC 冷却中',
-        countdownNote: countdownNote || `第 ${currentRun}/${totalRunsForPlan} 轮第 ${attemptRunForPlan} 次尝试将在 30 秒后继续`,
-      }, extraState);
-    }
-    if (logMessage) {
-      await addLog(logMessage, 'warn');
-    }
-    throw buildAutoRunTimerParkedError(logMessage || '当前自动运行已进入定时等待。');
   };
   const restartCurrentNodeAfterIdle = async (nodeId, error) => {
     if (!isAutoRunStepIdleRestartError(error)) {
@@ -13583,12 +13198,6 @@ async function runAutoSequenceFromNodeGraph(startNodeId, context = {}) {
     }
     try {
       await executeNodeAndWaitWithAutoRunIdleLogWatchdog(nodeId, getAutoRunNodeDelayMs(nodeId));
-      if (nodeId === 'plus-checkout-billing' && gpcCheckoutRestartCount > 0) {
-        const completedState = await getState();
-        if (isGpcCheckoutState(completedState)) {
-          await setAutoRunGpcCheckoutRestartCount(0);
-        }
-      }
       nodeIndex += 1;
     } catch (err) {
       attachFailedNode(err, nodeId, latestState);
@@ -13602,45 +13211,17 @@ async function runAutoSequenceFromNodeGraph(startNodeId, context = {}) {
 
       const step = getDisplayStepForNode(nodeId, latestState);
       const nodeExecutionKey = getNodeExecutionKey(nodeId, latestState);
-      const isGpcCheckoutStep = isGpcCheckoutState(latestState);
       if (isPlusCheckoutRestartStep(step, nodeExecutionKey, latestState)
         && isPlusCheckoutRestartRequiredFailure(err)) {
-        if (isGpcCheckoutStep) {
-          gpcCheckoutRestartCount = await setAutoRunGpcCheckoutRestartCount(gpcCheckoutRestartCount + 1);
-        } else {
-          plusCheckoutRestartCount += 1;
-        }
-        const checkoutRestartCount = isGpcCheckoutStep
-          ? gpcCheckoutRestartCount
-          : plusCheckoutRestartCount;
-        const checkoutLabel = isGpcCheckoutStep
-          ? 'GPC'
-          : 'Plus Checkout';
-        const recreateLabel = isGpcCheckoutStep
-          ? '重新准备 GPC 页面'
-          : '重新创建 Plus Checkout';
+        plusCheckoutRestartCount += 1;
         await addLog(
-          `节点 ${getNodeLabel(nodeId, latestState)}：检测到 ${checkoutLabel} 失败/卡住，准备回到节点 plus-checkout-create ${recreateLabel}（第 ${checkoutRestartCount} 次）。原因：${getErrorMessage(err)}`,
+          `节点 ${getNodeLabel(nodeId, latestState)}：检测到 Plus Checkout 失败/卡住，准备回到节点 plus-checkout-create 重新创建 Plus Checkout（第 ${plusCheckoutRestartCount} 次）。原因：${getErrorMessage(err)}`,
           'warn'
         );
         const checkoutResetAnchorNodeId = getPreviousNodeId('plus-checkout-create', latestState) || 'fill-profile';
         await invalidateDownstreamAfterAutoRunNodeRestart(checkoutResetAnchorNodeId, {
-          logLabel: `节点 ${nodeId} ${checkoutLabel}失败后准备回到 plus-checkout-create 重试（第 ${checkoutRestartCount} 次）`,
+          logLabel: `节点 ${nodeId} Plus Checkout失败后准备回到 plus-checkout-create 重试（第 ${plusCheckoutRestartCount} 次）`,
         });
-        if (
-          isGpcCheckoutStep
-          && checkoutRestartCount >= GPC_CHECKOUT_RESTART_COOLDOWN_TRIGGER_COUNT
-          && checkoutRestartCount % GPC_CHECKOUT_RESTART_COOLDOWN_TRIGGER_COUNT === 0
-        ) {
-          await parkAutoRunCurrentAttemptByTimer({
-            currentRun: targetRun,
-            totalRunsForPlan: totalRuns,
-            attemptRunForPlan: attemptRuns,
-            countdownTitle: 'GPC 冷却中',
-            countdownNote: `第 ${targetRun}/${totalRuns} 轮第 ${attemptRuns} 次尝试将在 30 秒后继续回到 plus-checkout-create`,
-            logMessage: `GPC 第 ${checkoutRestartCount} 次回到 plus-checkout-create 后仍未恢复，已进入 30 秒冷却，稍后继续当前尝试。`,
-          });
-        }
         nodeIndex = Math.max(0, getNodeIndex(await getState(), 'plus-checkout-create'));
         continue;
       }
@@ -14587,7 +14168,6 @@ const messageRouter = self.MultiPageBackgroundMessageRouter?.createMessageRouter
   executeNodeViaCompletionSignal,
   exportSettingsBundle,
   fetchGeneratedEmail,
-  refreshGpcCardBalance,
   finalizePhoneActivationAfterSuccessfulFlow,
   testKiroRsConnection: async (baseUrl, apiKey) => {
     if (typeof self.MultiPageBackgroundKiroPublisherKiroRs?.checkKiroRsConnection !== 'function') {

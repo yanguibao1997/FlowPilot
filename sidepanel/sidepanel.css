@@ -967,16 +967,6 @@ header {
   min-width: 0;
 }
 
-.gpc-card-key-inline > .input-with-icon {
-  flex: 0 1 376px;
-  max-width: 376px;
-}
-
-.gpc-card-key-inline > .data-value {
-  flex: 0 0 auto;
-  white-space: nowrap;
-}
-
 .ip-proxy-fold-row {
   display: block;
 }

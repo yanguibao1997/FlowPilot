@@ -134,9 +134,6 @@ async function refreshContributionContentHint() {
   events.push({ type: 'refresh' });
   ${refreshImpl ? 'return (' + refreshImpl + ')();' : 'return null;'}
 }
-async function ensureGpcCardKeyReadyForStart() {
-  return true;
-}
 ${bundle}
 return {
   startAutoRunFromCurrentSettings,
@@ -322,9 +319,6 @@ function setAutoRunFallbackRiskPromptDismissed() {}
 async function refreshContributionContentHint() {
   events.push({ type: 'refresh' });
   return null;
-}
-async function ensureGpcCardKeyReadyForStart() {
-  return true;
 }
 ${bundle}
 return {

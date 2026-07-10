@@ -410,7 +410,6 @@ return {
       cloudflareTempEmailBaseUrl: 'https://mail.example.com',
       cloudflareTempEmailAdminAuth: 'admin-secret',
       cloudMailToken: 'cloud-token',
-      gpcCardKey: 'GPC-6C9F1A32-45734795-914E6F00',
       heroSmsApiKey: 'hero-key',
       phoneSmsProvider: 'madao',
       madaoBaseUrl: 'http://127.0.0.1:7822',
@@ -444,7 +443,6 @@ return {
   assert.equal(api.getPayloadInput().cloudflareTempEmailBaseUrl, 'https://mail.example.com');
   assert.equal(api.getPayloadInput().cloudflareTempEmailAdminAuth, 'admin-secret');
   assert.equal(api.getPayloadInput().cloudMailToken, 'cloud-token');
-  assert.equal(api.getPayloadInput().gpcCardKey, 'GPC-6C9F1A32-45734795-914E6F00');
   assert.equal(api.getPayloadInput().heroSmsApiKey, 'hero-key');
   assert.equal(api.getPayloadInput().phoneSmsProvider, 'madao');
   assert.equal(api.getPayloadInput().madaoBaseUrl, 'http://127.0.0.1:7822');

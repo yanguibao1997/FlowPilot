@@ -95,7 +95,6 @@ const selectCfDomain = { value: '' };
 const selectTempEmailDomain = { value: '' };
 const selectPanelMode = { value: 'cpa' };
 function getSelectedPlusPaymentMethod() { return 'paypal'; }
-function normalizeGpcCardKeyInput(value = '') { return String(value || '').trim().toUpperCase(); }
 const inputVpsUrl = { value: '' };
 const inputVpsPassword = { value: '' };
 const inputSub2ApiUrl = { value: '' };

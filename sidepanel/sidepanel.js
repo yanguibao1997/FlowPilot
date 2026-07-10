@@ -225,8 +225,6 @@ const rowPlusMode = document.getElementById('row-plus-mode');
 const inputPlusModeEnabled = document.getElementById('input-plus-mode-enabled');
 const rowPlusPaymentMethod = document.getElementById('row-plus-payment-method');
 const selectPlusPaymentMethod = document.getElementById('select-plus-payment-method');
-const btnGpcCardKeyPurchase = document.getElementById('btn-gpc-card-key-purchase');
-const btnAutoCdkPurchase = document.getElementById('btn-auto-cdk-purchase');
 const plusPaymentMethodCaption = document.getElementById('plus-payment-method-caption');
 const rowPlusAccountAccessStrategy = document.getElementById('row-plus-account-access-strategy');
 const selectPlusAccountAccessStrategy = document.getElementById('select-plus-account-access-strategy');
@@ -244,12 +242,6 @@ const rowHostedCheckoutPhone = document.getElementById('row-hosted-checkout-phon
 const inputHostedCheckoutPhone = document.getElementById('input-hosted-checkout-phone');
 const rowPlusHostedCheckoutOauthDelay = document.getElementById('row-plus-hosted-checkout-oauth-delay');
 const inputPlusHostedCheckoutOauthDelaySeconds = document.getElementById('input-plus-hosted-checkout-oauth-delay-seconds');
-const rowGpcCardKey = document.getElementById('row-gpc-card-key');
-const inputGpcCardKey = document.getElementById('input-gpc-card-key');
-const displayGpcCardKeyStatus = document.getElementById('display-gpc-card-key-status');
-const btnGpcCardKeyQuery = document.getElementById('btn-gpc-card-key-query');
-const rowAutoCdk = document.getElementById('row-auto-cdk');
-const inputAutoCdk = document.getElementById('input-auto-cdk');
 const selectMailProvider = document.getElementById('select-mail-provider');
 const btnMailLogin = document.getElementById('btn-mail-login');
 const rowCustomMailReceiveMode = document.getElementById('row-custom-mail-receive-mode');
@@ -603,11 +595,8 @@ const stepsList = document.querySelector('.steps-list');
 const PLUS_PAYMENT_METHOD_PAYPAL = 'paypal';
 const PLUS_PAYMENT_METHOD_PAYPAL_HOSTED = 'paypal-hosted';
 const PLUS_PAYMENT_METHOD_NONE = 'none';
-const PLUS_PAYMENT_METHOD_GPC_HELPER = 'gpc-helper';
-const PLUS_PAYMENT_METHOD_AUTO = 'plus-auto';
-const DEFAULT_GPC_BASE_URL = 'https://gpc.qlhazycoder.top';
 const DEFAULT_PLUS_HOSTED_CHECKOUT_OAUTH_DELAY_SECONDS = 3;
-const DEFAULT_PLUS_PAYMENT_METHOD = PLUS_PAYMENT_METHOD_AUTO;
+const DEFAULT_PLUS_PAYMENT_METHOD = PLUS_PAYMENT_METHOD_PAYPAL;
 const PLUS_ACCOUNT_ACCESS_STRATEGY_OAUTH = 'oauth';
 const PLUS_ACCOUNT_ACCESS_STRATEGY_SUB2API_CODEX_SESSION = 'sub2api_codex_session';
 const PLUS_ACCOUNT_ACCESS_STRATEGY_CPA_CODEX_SESSION = 'cpa_codex_session';
@@ -3555,28 +3544,15 @@ async function persistOperationDelayToggle() {
 }
 
 function normalizePlusPaymentMethod(value = '') {
-  const rootScope = typeof window !== 'undefined' ? window : globalThis;
-  if (rootScope.GpcUtils?.normalizePlusPaymentMethod) {
-    return rootScope.GpcUtils.normalizePlusPaymentMethod(value);
-  }
-
-  const gpcValue = typeof PLUS_PAYMENT_METHOD_GPC_HELPER !== 'undefined' ? PLUS_PAYMENT_METHOD_GPC_HELPER : 'gpc-helper';
-  const autoValue = typeof PLUS_PAYMENT_METHOD_AUTO !== 'undefined' ? PLUS_PAYMENT_METHOD_AUTO : 'plus-auto';
   const paypalValue = typeof PLUS_PAYMENT_METHOD_PAYPAL !== 'undefined' ? PLUS_PAYMENT_METHOD_PAYPAL : 'paypal';
   const paypalHostedValue = typeof PLUS_PAYMENT_METHOD_PAYPAL_HOSTED !== 'undefined' ? PLUS_PAYMENT_METHOD_PAYPAL_HOSTED : 'paypal-hosted';
   const noneValue = typeof PLUS_PAYMENT_METHOD_NONE !== 'undefined' ? PLUS_PAYMENT_METHOD_NONE : 'none';
   const normalized = String(value || '').trim().toLowerCase();
-  if (normalized === noneValue || normalized === 'no-payment' || normalized === 'skip-payment') {
+  if (normalized === noneValue) {
     return noneValue;
   }
-  if (normalized === paypalHostedValue || normalized === 'paypal_direct' || normalized === 'paypal-direct') {
+  if (normalized === paypalHostedValue) {
     return paypalHostedValue;
-  }
-  if (normalized === gpcValue) {
-    return gpcValue;
-  }
-  if (normalized === autoValue || normalized === 'pix' || normalized === 'pix_plus' || normalized === 'pixplus') {
-    return autoValue;
   }
   return paypalValue;
 }
@@ -4463,9 +4439,6 @@ function applyYydsMailSettingsState(state = {}) {
 
 function collectSettingsPayload() {
   const safeUiLanguage = typeof currentUiLanguage !== 'undefined' ? currentUiLanguage : 'auto';
-  const defaultGpcBaseUrl = typeof DEFAULT_GPC_BASE_URL !== 'undefined'
-    ? DEFAULT_GPC_BASE_URL
-    : 'https://gpc.qlhazycoder.top';
   const normalizeYydsBaseUrlValue = typeof normalizeYydsMailBaseUrl === 'function'
     ? normalizeYydsMailBaseUrl
     : ((value) => String(value || '').trim() || 'https://maliapi.215.im/v1');
@@ -5180,9 +5153,6 @@ function collectSettingsPayload() {
       ? effectiveTargetId
       : openAiTargetId
   );
-  const effectivePlusModeEnabled = capabilityState
-    ? Boolean(capabilityState.runtimeLocks?.plusModeEnabled)
-    : rawPlusModeEnabled;
   const effectivePhoneVerificationEnabled = capabilityState
     ? Boolean(capabilityState.runtimeLocks?.phoneVerificationEnabled)
     : rawPhoneVerificationEnabled;
@@ -5374,7 +5344,7 @@ function collectSettingsPayload() {
     ipProxyRegion: currentIpProxyServiceProfile.region,
     codex2apiUrl: inputCodex2ApiUrl.value.trim(),
     codex2apiAdminKey: inputCodex2ApiAdminKey.value.trim(),
-    plusModeEnabled: effectivePlusModeEnabled,
+    plusModeEnabled: false,
     plusPaymentMethod,
     plusAccountAccessStrategy: activeFlowId === defaultFlowId
       ? resolvePlusAccountAccessStrategyForTargetSafe(requestedPlusAccountAccessStrategy, effectiveOpenAiTargetId)
@@ -5394,15 +5364,6 @@ function collectSettingsPayload() {
     paypalPassword: String(currentPayPalAccount?.password || latestState?.paypalPassword || ''),
     currentPayPalAccountId: String(latestState?.currentPayPalAccountId || '').trim(),
     paypalAccounts: payPalAccounts,
-    gpcBaseUrl: window.GpcUtils?.normalizeGpcBaseUrl
-      ? window.GpcUtils.normalizeGpcBaseUrl(defaultGpcBaseUrl)
-      : String(defaultGpcBaseUrl).trim().replace(/\/+$/g, ''),
-    gpcCardKey: typeof inputGpcCardKey !== 'undefined' && inputGpcCardKey
-      ? normalizeGpcCardKeyInput(inputGpcCardKey.value || '')
-      : normalizeGpcCardKeyInput(latestState?.gpcCardKey || ''),
-    autoCdk: typeof inputAutoCdk !== 'undefined' && inputAutoCdk
-      ? String(inputAutoCdk.value || '').trim()
-      : String(latestState?.autoCdk || '').trim(),
     ...(accountContributionEnabled ? {} : {
       customPassword: inputPassword.value,
     }),
@@ -10971,8 +10932,6 @@ function updatePlusModeUI() {
   const paypalHostedValue = typeof PLUS_PAYMENT_METHOD_PAYPAL_HOSTED !== 'undefined' ? PLUS_PAYMENT_METHOD_PAYPAL_HOSTED : 'paypal-hosted';
   const noneValue = typeof PLUS_PAYMENT_METHOD_NONE !== 'undefined' ? PLUS_PAYMENT_METHOD_NONE : 'none';
 
-  const gpcValue = typeof PLUS_PAYMENT_METHOD_GPC_HELPER !== 'undefined' ? PLUS_PAYMENT_METHOD_GPC_HELPER : 'gpc-helper';
-  const autoValue = typeof PLUS_PAYMENT_METHOD_AUTO !== 'undefined' ? PLUS_PAYMENT_METHOD_AUTO : 'plus-auto';
   const oauthStrategyValue = typeof PLUS_ACCOUNT_ACCESS_STRATEGY_OAUTH !== 'undefined'
     ? PLUS_ACCOUNT_ACCESS_STRATEGY_OAUTH
     : 'oauth';
@@ -11088,10 +11047,12 @@ function updatePlusModeUI() {
     ? normalizePlusPaymentMethod(selectPlusPaymentMethod.value)
     : method;
   const hostedRowsVisible = enabled && selectedMethod === paypalHostedValue;
-  const gpcRowsVisible = enabled && selectedMethod === gpcValue;
-  const autoRowsVisible = enabled && selectedMethod === autoValue;
   if (typeof rowPlusMode !== 'undefined' && rowPlusMode) {
-    rowPlusMode.style.display = supportsPlusMode ? '' : 'none';
+    rowPlusMode.style.display = 'none';
+  }
+  if (typeof inputPlusModeEnabled !== 'undefined' && inputPlusModeEnabled) {
+    inputPlusModeEnabled.checked = false;
+    inputPlusModeEnabled.disabled = true;
   }
   if (typeof selectPlusPaymentMethod !== 'undefined' && selectPlusPaymentMethod) {
     selectPlusPaymentMethod.value = method;
@@ -11100,12 +11061,7 @@ function updatePlusModeUI() {
     }
   }
   if (typeof plusPaymentMethodCaption !== 'undefined' && plusPaymentMethodCaption) {
-    plusPaymentMethodCaption.textContent = method === gpcValue
-      ? 'GPC 网页充值链路'
-
-      : method === autoValue
-      ? ''
-      : method === noneValue
+    plusPaymentMethodCaption.textContent = method === noneValue
       ? '已有 Plus，无需配置支付链路'
       : method === paypalHostedValue
       ? 'PayPal 无卡直绑链路'
@@ -11214,19 +11170,6 @@ function updatePlusModeUI() {
     }
     row.style.display = hostedRowsVisible ? '' : 'none';
   });
-  if (typeof rowGpcCardKey !== 'undefined' && rowGpcCardKey) {
-    rowGpcCardKey.style.display = gpcRowsVisible ? '' : 'none';
-  }
-  if (typeof btnGpcCardKeyPurchase !== 'undefined' && btnGpcCardKeyPurchase) {
-    btnGpcCardKeyPurchase.style.display = gpcRowsVisible ? '' : 'none';
-  }
-  if (typeof rowAutoCdk !== 'undefined' && rowAutoCdk) {
-    rowAutoCdk.style.display = autoRowsVisible ? '' : 'none';
-  }
-  if (typeof btnAutoCdkPurchase !== 'undefined' && btnAutoCdkPurchase) {
-    btnAutoCdkPurchase.style.display = autoRowsVisible ? '' : 'none';
-  }
-
 }
 
 function setSettingsCardLocked(locked) {
@@ -11455,134 +11398,6 @@ async function persistSignupPhoneInputForAction() {
     return;
   }
   await persistSignupPhoneInputValue({ final: true, silent: true });
-}
-
-function isGpcHelperCheckoutSelected() {
-  const gpcValue = typeof PLUS_PAYMENT_METHOD_GPC_HELPER !== 'undefined' ? PLUS_PAYMENT_METHOD_GPC_HELPER : 'gpc-helper';
-  const plusEnabled = typeof inputPlusModeEnabled !== 'undefined' && inputPlusModeEnabled
-    ? Boolean(inputPlusModeEnabled.checked)
-    : Boolean(latestState?.plusModeEnabled);
-  return plusEnabled && getSelectedPlusPaymentMethod() === gpcValue;
-}
-
-function normalizeGpcCardKeyInput(value = '') {
-  if (window.GpcUtils?.normalizeGpcCardKey) {
-    return window.GpcUtils.normalizeGpcCardKey(value);
-  }
-  return String(value || '').trim().toUpperCase();
-}
-
-function isGpcCardKeyInputFormat(value = '') {
-  if (window.GpcUtils?.isGpcCardKeyFormat) {
-    return window.GpcUtils.isGpcCardKeyFormat(value);
-  }
-  return /^GPC-[A-F0-9]{8}-[A-F0-9]{8}-[A-F0-9]{8}$/.test(normalizeGpcCardKeyInput(value));
-}
-
-function setGpcCardKeyStatus(message = '', tone = '') {
-  if (!displayGpcCardKeyStatus) {
-    return;
-  }
-  displayGpcCardKeyStatus.textContent = message || '等待输入';
-  displayGpcCardKeyStatus.dataset.tone = tone || '';
-}
-
-function formatGpcCardKeyBalanceStatus(result = {}) {
-  const remaining = result?.remainingUses;
-  if (remaining !== undefined && remaining !== null && String(remaining).trim() !== '') {
-    return `剩余 ${remaining} 次`;
-  }
-  return String(result?.balance || '').trim() || '卡密可用';
-}
-
-async function refreshGpcCardKeyStatus(options = {}) {
-  const rawCardKey = String(inputGpcCardKey?.value || '').trim();
-  const cardKey = normalizeGpcCardKeyInput(rawCardKey);
-  if (!rawCardKey) {
-    setGpcCardKeyStatus('等待输入', '');
-    return null;
-  }
-  if (inputGpcCardKey && inputGpcCardKey.value !== cardKey) {
-    inputGpcCardKey.value = cardKey;
-  }
-  if (!isGpcCardKeyInputFormat(cardKey)) {
-    setGpcCardKeyStatus('格式应为 GPC-XXXXXXXX-XXXXXXXX-XXXXXXXX', 'error');
-    return null;
-  }
-
-  const requestId = (refreshGpcCardKeyStatus.requestId || 0) + 1;
-  refreshGpcCardKeyStatus.requestId = requestId;
-  setGpcCardKeyStatus('正在检测...', 'running');
-  try {
-    const response = await sendSidepanelMessage({
-      type: 'REFRESH_GPC_CARD_BALANCE',
-      payload: {
-        gpcCardKey: cardKey,
-        reason: options.reason || 'input',
-      },
-    });
-    if (requestId !== refreshGpcCardKeyStatus.requestId) {
-      return response;
-    }
-    if (response?.error) {
-      throw new Error(response.error);
-    }
-    setGpcCardKeyStatus(formatGpcCardKeyBalanceStatus(response), 'ok');
-    syncLatestState({
-      gpcCardKey: cardKey,
-      gpcBalance: response?.balance || latestState?.gpcBalance || '',
-      gpcBalancePayload: response?.data || latestState?.gpcBalancePayload || null,
-      gpcBalanceUpdatedAt: response?.updatedAt || Date.now(),
-      gpcBalanceError: '',
-      gpcRemainingUses: Number(response?.remainingUses) || 0,
-      gpcCardStatus: String(response?.cardStatus || '').trim(),
-    });
-    return response;
-  } catch (error) {
-    if (requestId === refreshGpcCardKeyStatus.requestId) {
-      setGpcCardKeyStatus(error?.message || '卡密检测失败', 'error');
-    }
-    return null;
-  }
-}
-
-function scheduleGpcCardKeyStatusRefresh() {
-  clearTimeout(scheduleGpcCardKeyStatusRefresh.timer);
-  scheduleGpcCardKeyStatusRefresh.timer = setTimeout(() => {
-    refreshGpcCardKeyStatus({ reason: 'input' }).catch(() => { });
-  }, 1000);
-}
-
-async function showGpcStartBlockedDialog(message) {
-  await openConfirmModal({
-    title: 'GPC 页面流程无法开启',
-    message,
-    confirmLabel: '知道了',
-  });
-}
-
-async function ensureGpcCardKeyReadyForStart(options = {}) {
-  if (!isGpcHelperCheckoutSelected()) {
-    return true;
-  }
-  const cardKey = normalizeGpcCardKeyInput(inputGpcCardKey?.value || latestState?.gpcCardKey || '');
-  if (!cardKey) {
-    await showGpcStartBlockedDialog('请先填写 GPC 卡密。');
-    return false;
-  }
-  if (!isGpcCardKeyInputFormat(cardKey)) {
-    await showGpcStartBlockedDialog('GPC 卡密格式不正确，应类似 GPC-6C9F1A32-45734795-914E6F00。');
-    setGpcCardKeyStatus('格式应为 GPC-XXXXXXXX-XXXXXXXX-XXXXXXXX', 'error');
-    return false;
-  }
-  if (inputGpcCardKey) {
-    inputGpcCardKey.value = cardKey;
-  }
-
-  if (options?.notify) {
-    showToast('GPC 卡密已填写。', 'success', 1800);
-  }
-  return true;
 }
 
 async function clearRegistrationEmail(options = {}) {
@@ -12111,7 +11926,8 @@ function applySettingsState(state) {
   }
   syncPasswordField(state || {});
   if (typeof inputPlusModeEnabled !== 'undefined' && inputPlusModeEnabled) {
-    inputPlusModeEnabled.checked = Boolean(state?.plusModeEnabled);
+    inputPlusModeEnabled.checked = false;
+    inputPlusModeEnabled.disabled = true;
   }
   if (typeof selectPlusPaymentMethod !== 'undefined' && selectPlusPaymentMethod) {
     selectPlusPaymentMethod.value = normalizePlusPaymentMethod(state?.plusPaymentMethod || DEFAULT_PLUS_PAYMENT_METHOD);
@@ -12122,23 +11938,6 @@ function applySettingsState(state) {
   if (typeof selectPlusAccountAccessStrategy !== 'undefined' && selectPlusAccountAccessStrategy) {
     selectPlusAccountAccessStrategy.dataset.requestedValue = currentPlusAccountAccessStrategy;
     selectPlusAccountAccessStrategy.value = normalizePlusAccountAccessStrategyUiValue(currentPlusAccountAccessStrategy);
-  }
-  if (typeof inputGpcCardKey !== 'undefined' && inputGpcCardKey) {
-    inputGpcCardKey.value = state?.gpcCardKey || '';
-    if (state?.gpcBalanceError) {
-      setGpcCardKeyStatus(state.gpcBalanceError, 'error');
-    } else if (state?.gpcBalance || state?.gpcRemainingUses !== undefined) {
-      setGpcCardKeyStatus(formatGpcCardKeyBalanceStatus({
-        balance: state?.gpcBalance,
-        remainingUses: state?.gpcRemainingUses,
-        cardStatus: state?.gpcCardStatus,
-      }), 'ok');
-    } else {
-      setGpcCardKeyStatus(inputGpcCardKey.value ? '等待检测' : '等待输入', '');
-    }
-  }
-  if (typeof inputAutoCdk !== 'undefined' && inputAutoCdk) {
-    inputAutoCdk.value = state?.autoCdk || '';
   }
   if (typeof inputHostedCheckoutVerificationUrl !== 'undefined' && inputHostedCheckoutVerificationUrl) {
     inputHostedCheckoutVerificationUrl.value = String(state?.hostedCheckoutVerificationUrl || '').trim();
@@ -15865,10 +15664,6 @@ stepsList?.addEventListener('click', async (event) => {
       return;
     }
     await persistCurrentSettingsForAction();
-    const gpcCreateStep = getStepIdByKeyForCurrentMode('plus-checkout-create') || 6;
-    if (step === gpcCreateStep && !(await ensureGpcCardKeyReadyForStart())) {
-      return;
-    }
     const shouldPersistSharedPassword = nodeId === 'fill-password'
       || nodeId === 'kiro-submit-password'
       || nodeId === 'grok-submit-profile';
@@ -16173,11 +15968,6 @@ async function startAutoRunFromCurrentSettings() {
     clearPendingAutoRunStartRunCount();
     throw new Error(autoRunStartValidation.errors?.[0]?.message || '当前设置不支持启动自动流程。');
   }
-  if (!(await ensureGpcCardKeyReadyForStart())) {
-    clearPendingAutoRunStartRunCount();
-    return false;
-  }
-
   const customEmailPoolEnabled = typeof usesCustomEmailPoolGenerator === 'function'
     && usesCustomEmailPoolGenerator();
   const lockedRunCount = typeof getLockedRunCountFromEmailPool === 'function'
@@ -16517,14 +16307,6 @@ inputPlusModeEnabled?.addEventListener('change', () => {
   saveSettings({ silent: true }).catch(() => { });
 });
 
-btnGpcCardKeyPurchase?.addEventListener('click', () => {
-  openExternalUrl('https://pay.ldxp.cn/shop/gpc');
-});
-
-btnAutoCdkPurchase?.addEventListener('click', () => {
-  openExternalUrl('https://shop.qlhazycoder.top/');
-});
-
 btnOpenTargetRepository?.addEventListener('click', () => {
   const repositoryUrl = btnOpenTargetRepository.dataset.repositoryUrl
     || getTargetRepositoryUrl(getSelectedFlowId(), getSelectedTargetId());
@@ -16600,7 +16382,6 @@ selectPlusPaymentMethod?.addEventListener('change', () => {
   inputHostedCheckoutVerificationUrl,
   inputHostedCheckoutPhone,
   inputPlusHostedCheckoutOauthDelaySeconds,
-  inputAutoCdk,
 ].forEach((input) => {
   input?.addEventListener('input', () => {
     markSettingsDirty(true);
@@ -16613,29 +16394,6 @@ selectPlusPaymentMethod?.addEventListener('change', () => {
   input?.addEventListener('blur', () => {
     saveSettings({ silent: true }).catch(() => { });
   });
-});
-
-inputGpcCardKey?.addEventListener('input', () => {
-  markSettingsDirty(true);
-  scheduleSettingsAutoSave();
-  scheduleGpcCardKeyStatusRefresh();
-});
-inputGpcCardKey?.addEventListener('change', () => {
-  markSettingsDirty(true);
-  saveSettings({ silent: true }).catch(() => { });
-  refreshGpcCardKeyStatus({ reason: 'change' }).catch(() => { });
-});
-inputGpcCardKey?.addEventListener('blur', () => {
-  saveSettings({ silent: true }).catch(() => { });
-  refreshGpcCardKeyStatus({ reason: 'blur' }).catch(() => { });
-});
-btnGpcCardKeyQuery?.addEventListener('click', async () => {
-  btnGpcCardKeyQuery.disabled = true;
-  try {
-    await refreshGpcCardKeyStatus({ reason: 'manual' });
-  } finally {
-    btnGpcCardKeyQuery.disabled = false;
-  }
 });
 
 selectMailProvider.addEventListener('change', async () => {
@@ -19237,32 +18995,10 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
         updateMailProviderUI();
       }
       if (message.payload.plusModeEnabled !== undefined && inputPlusModeEnabled) {
-        inputPlusModeEnabled.checked = Boolean(message.payload.plusModeEnabled);
+        inputPlusModeEnabled.checked = false;
       }
       if (message.payload.plusPaymentMethod !== undefined && selectPlusPaymentMethod) {
         selectPlusPaymentMethod.value = normalizePlusPaymentMethod(message.payload.plusPaymentMethod);
-      }
-      if (message.payload.gpcCardKey !== undefined && inputGpcCardKey) {
-        inputGpcCardKey.value = message.payload.gpcCardKey || '';
-      }
-      if (message.payload.autoCdk !== undefined && typeof inputAutoCdk !== 'undefined' && inputAutoCdk) {
-        inputAutoCdk.value = message.payload.autoCdk || '';
-      }
-      if (
-        message.payload.gpcBalance !== undefined
-        || message.payload.gpcRemainingUses !== undefined
-        || message.payload.gpcCardStatus !== undefined
-        || message.payload.gpcBalanceError !== undefined
-      ) {
-        if (message.payload.gpcBalanceError) {
-          setGpcCardKeyStatus(message.payload.gpcBalanceError, 'error');
-        } else {
-          setGpcCardKeyStatus(formatGpcCardKeyBalanceStatus({
-            balance: latestState?.gpcBalance,
-            remainingUses: latestState?.gpcRemainingUses,
-            cardStatus: latestState?.gpcCardStatus,
-          }), 'ok');
-        }
       }
       if (message.payload.plusAccountAccessStrategy !== undefined && selectPlusAccountAccessStrategy) {
         currentPlusAccountAccessStrategy = normalizePlusAccountAccessStrategy(message.payload.plusAccountAccessStrategy);

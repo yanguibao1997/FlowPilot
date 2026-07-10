@@ -931,6 +931,7 @@ test('AUTO_RUN applies current phone capability state from sidepanel payload bef
         signupMethod: validationState?.signupMethod,
         resolvedSignupMethod: validationState?.resolvedSignupMethod,
         phoneVerificationEnabled: validationState?.phoneVerificationEnabled,
+        plusModeEnabled: validationState?.plusModeEnabled,
         optionTargetId: options?.targetId,
       });
       return { ok: true, errors: [] };
@@ -946,7 +947,7 @@ test('AUTO_RUN applies current phone capability state from sidepanel payload bef
       targetId: 'webchat',
       signupMethod: 'email',
       phoneVerificationEnabled: false,
-      plusModeEnabled: false,
+      plusModeEnabled: true,
     },
   });
 
@@ -955,6 +956,7 @@ test('AUTO_RUN applies current phone capability state from sidepanel payload bef
   assert.equal(state.signupMethod, 'email');
   assert.equal(state.resolvedSignupMethod, null);
   assert.equal(state.phoneVerificationEnabled, false);
+  assert.equal(state.plusModeEnabled, false);
   assert.deepStrictEqual(calls, [
     {
       type: 'setState',
@@ -989,6 +991,7 @@ test('AUTO_RUN applies current phone capability state from sidepanel payload bef
       signupMethod: 'email',
       resolvedSignupMethod: null,
       phoneVerificationEnabled: false,
+      plusModeEnabled: false,
       optionTargetId: 'webchat',
     },
   ]);

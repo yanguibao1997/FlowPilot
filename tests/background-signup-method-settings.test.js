@@ -144,7 +144,6 @@ test('background step definitions resolve titles from the frozen signup method',
 const api = new Function(`
 const captured = [];
 const PLUS_PAYMENT_METHOD_PAYPAL = 'paypal';
-const PLUS_PAYMENT_METHOD_GPC_HELPER = 'gpc-helper';
 const PLUS_ACCOUNT_ACCESS_STRATEGY_OAUTH = 'oauth';
 const PLUS_ACCOUNT_ACCESS_STRATEGY_SUB2API_CODEX_SESSION = 'sub2api_codex_session';
 const PLUS_ACCOUNT_ACCESS_STRATEGY_CPA_CODEX_SESSION = 'cpa_codex_session';
@@ -175,7 +174,7 @@ return {
 `)();
 
   const steps = api.getStepDefinitionsForState({
-    plusModeEnabled: true,
+    plusModeEnabled: false,
     plusPaymentMethod: 'gopay',
     signupMethod: 'email',
     resolvedSignupMethod: 'phone',
@@ -183,7 +182,7 @@ return {
 
   assert.deepEqual(api.getCaptured(), [{
     activeFlowId: 'openai',
-    plusModeEnabled: true,
+    plusModeEnabled: false,
     plusPaymentMethod: 'paypal',
     plusAccountAccessStrategy: 'oauth',
     signupMethod: 'phone',
