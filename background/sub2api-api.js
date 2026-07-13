@@ -798,12 +798,101 @@
       };
     }
 
+    async function createXaiAccount(state = {}, authJson = {}, options = {}) {
+      const logLabel = normalizeString(options.logLabel) || 'SUB2API xAI 账号创建';
+      if (!authJson || typeof authJson !== 'object' || Array.isArray(authJson)) {
+        throw new Error('缺少有效的 xAI auth JSON。');
+      }
+      if (normalizeString(authJson.type) !== 'xai' || !normalizeString(authJson.access_token)) {
+        throw new Error('缺少有效的 xAI auth JSON（type=xai + access_token）。');
+      }
+
+      await logWithOptions(`${logLabel}：正在登录 SUB2API 并创建 xAI 账号...`, 'info', options);
+      const { origin, token } = await loginSub2Api(state, options);
+      const groupNames = state.sub2apiGroupName || DEFAULT_SUB2API_GROUP_NAME;
+      const groups = await getGroupsByNames(origin, token, groupNames, options);
+      const groupIds = groups
+        .map((group) => Number(group?.id))
+        .filter((id) => Number.isFinite(id) && id > 0);
+      if (!groupIds.length) {
+        throw new Error('SUB2API 返回的目标分组 ID 无效。');
+      }
+
+      const proxyPreference = resolveSub2ApiProxyPreference(state);
+      const proxy = proxyPreference
+        ? await resolveSub2ApiProxy(origin, token, proxyPreference, options)
+        : null;
+      const proxyId = normalizeProxyId(proxy?.id);
+      const accountPriority = resolveSub2ApiAccountPriority(state);
+
+      const rootScope = typeof self !== 'undefined' ? self : globalThis;
+      const schemaApi = rootScope.MultiPageBackgroundGrokCredentialSchema;
+      const createPayload = schemaApi?.buildSub2ApiXaiAccount
+        ? schemaApi.buildSub2ApiXaiAccount(authJson, {
+          priority: accountPriority,
+          concurrency: DEFAULT_CONCURRENCY,
+          groupIds,
+          proxyId,
+          source: 'flowpilot-grok',
+        })
+        : {
+          name: normalizeString(authJson.email) || normalizeString(authJson.sub) || 'xAI Account',
+          platform: 'xai',
+          type: 'oauth',
+          credentials: {
+            access_token: normalizeString(authJson.access_token),
+            refresh_token: normalizeString(authJson.refresh_token),
+            email: normalizeString(authJson.email),
+            sub: normalizeString(authJson.sub),
+            base_url: normalizeString(authJson.base_url) || 'https://cli-chat-proxy.grok.com/v1',
+            token_endpoint: normalizeString(authJson.token_endpoint) || 'https://auth.x.ai/oauth2/token',
+          },
+          concurrency: DEFAULT_CONCURRENCY,
+          priority: accountPriority,
+          group_ids: groupIds,
+          ...(proxyId ? { proxy_id: proxyId } : {}),
+        };
+
+      // Ensure group_ids always present for admin create API.
+      if (!Array.isArray(createPayload.group_ids) || !createPayload.group_ids.length) {
+        createPayload.group_ids = groupIds;
+      }
+      createPayload.group_ids = createPayload.group_ids
+        .map((id) => Number(id))
+        .filter((id) => Number.isFinite(id) && id > 0);
+      if (proxyId && !createPayload.proxy_id) {
+        createPayload.proxy_id = proxyId;
+      }
+
+      const createdAccount = await requestJson(origin, '/api/v1/admin/accounts', {
+        method: 'POST',
+        token,
+        timeoutMs: options.createTimeoutMs || options.timeoutMs,
+        body: createPayload,
+      });
+
+      const accountName = normalizeString(createdAccount?.name || createPayload.name);
+      const accountId = createdAccount?.id;
+      const verifiedStatus = accountId
+        ? `SUB2API 已创建 xAI 账号 #${accountId}`
+        : `SUB2API 已创建 xAI 账号：${accountName}`;
+      await logWithOptions(verifiedStatus, 'ok', options);
+      return {
+        verifiedStatus,
+        accountName,
+        accountId: accountId || null,
+        sub2apiAccountName: accountName,
+        sub2apiAccountId: accountId || null,
+      };
+    }
+
     return {
       buildDraftAccountName,
       buildCodexSessionImportContent,
       buildOpenAiCredentials,
       buildOpenAiExtra,
       buildProxyDisplayName,
+      createXaiAccount,
       extractStateFromAuthUrl,
       generateOpenAiAuthUrl,
       getGroupsByNames,

@@ -182,3 +182,44 @@ test('cpa api preserves provided id_token and refresh_token when available', () 
   assert.equal(result.authJson.session_token, 'session-token-1');
   assert.equal(result.hasRefreshToken, true);
 });
+
+test('cpa api imports xai auth json through auth-files endpoint', async () => {
+  const apiModule = loadCpaApiModule();
+  const fetchCalls = [];
+  const api = apiModule.createCpaApi({
+    fetchImpl: async (url, options = {}) => {
+      const parsed = new URL(url);
+      fetchCalls.push({
+        path: parsed.pathname,
+        search: parsed.search,
+        method: options.method || 'POST',
+        body: options.body ? JSON.parse(options.body) : null,
+        headers: options.headers || {},
+      });
+      if (parsed.pathname === '/v0/management/auth-files') {
+        return createJsonResponse({});
+      }
+      return createJsonResponse({ message: `unexpected path ${parsed.pathname}` }, 404);
+    },
+  });
+
+  const result = await api.importXaiAuthFile({
+    vpsUrl: 'http://127.0.0.1:8317/management.html',
+    vpsPassword: 'secret',
+  }, {
+    type: 'xai',
+    email: 'a@b.com',
+    access_token: 'at',
+    refresh_token: 'rt',
+  });
+
+  assert.equal(result.cpaImportedFileName, 'xai-a@b.com.json');
+  const call = fetchCalls.find((entry) => entry.path === '/v0/management/auth-files');
+  assert.ok(call, 'expected CPA auth-files import call');
+  assert.equal(call.method, 'POST');
+  assert.equal(call.headers.Authorization, 'Bearer secret');
+  assert.equal(decodeURIComponent(new URLSearchParams(call.search).get('name')), 'xai-a@b.com.json');
+  assert.equal(call.body.type, 'xai');
+  assert.equal(call.body.email, 'a@b.com');
+  assert.equal(call.body.access_token, 'at');
+});

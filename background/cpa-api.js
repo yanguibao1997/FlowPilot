@@ -459,6 +459,42 @@
       };
     }
 
+    async function importXaiAuthFile(state = {}, authJson = {}, options = {}) {
+      const logLabel = normalizeString(options.logLabel) || 'CPA xAI 凭证导入';
+      const managementKey = normalizeString(state?.vpsPassword);
+      if (!managementKey) {
+        throw new Error('尚未配置 CPA 管理密钥，请先在侧边栏填写。');
+      }
+      const origin = deriveCpaManagementOrigin(state?.vpsUrl);
+      const email = normalizeEmailValue(authJson?.email) || 'unknown';
+      const schemaApi = (typeof self !== 'undefined' ? self : globalThis).MultiPageBackgroundGrokCredentialSchema;
+      const fileName = normalizeString(options.fileName)
+        || (schemaApi?.buildCpaXaiAuthFileName
+          ? schemaApi.buildCpaXaiAuthFileName(email, authJson?.sub)
+          : `xai-${email}.json`);
+      if (!isPlainObject(authJson) || normalizeString(authJson.type) !== 'xai' || !normalizeString(authJson.access_token)) {
+        throw new Error('缺少有效的 xAI auth JSON（type=xai + access_token）。');
+      }
+
+      await logWithOptions(`${logLabel}：正在上传 ${fileName}...`, 'info', options);
+      await fetchCpaManagementJson(origin, `/v0/management/auth-files?name=${encodeURIComponent(fileName)}`, {
+        method: 'POST',
+        managementKey,
+        timeoutMs: options.importTimeoutMs || options.timeoutMs,
+        body: authJson,
+      });
+
+      const verifiedStatus = email && email !== 'unknown'
+        ? `CPA xAI 凭证导入完成：${email}`
+        : `CPA xAI 凭证导入完成：${fileName}`;
+      await logWithOptions(verifiedStatus, 'ok', options);
+      return {
+        verifiedStatus,
+        cpaImportedFileName: fileName,
+        cpaImportedEmail: email === 'unknown' ? null : email,
+      };
+    }
+
     async function importCurrentChatGptSession(state = {}, options = {}) {
       const logLabel = normalizeString(options.logLabel) || 'CPA 会话导入';
       const managementKey = normalizeString(state?.vpsPassword);
@@ -496,6 +532,7 @@
       deriveCpaManagementOrigin,
       fetchCpaManagementJson,
       importCurrentChatGptSession,
+      importXaiAuthFile,
       requestOAuthUrl,
       submitOAuthCallback,
     };
