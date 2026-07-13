@@ -28,7 +28,7 @@
       supportsAccountContribution: false,
       supportsOpenAiOAuthContribution: false,
       contributionAdapterIds: [],
-      supportedTargetIds: ['webchat2api'],
+      supportedTargetIds: ['cpa', 'sub2api', 'webchat2api'],
       supportsLuckmail: false,
       canSwitchFlow: true,
       stepDefinitionMode: 'grok',
@@ -36,6 +36,31 @@
     },
     baseGroups: ['grok-runtime-status', 'shared-auto-run'],
     targets: {
+      cpa: {
+        id: 'cpa',
+        label: 'CPA 面板',
+        groups: [
+          'grok-target-cpa',
+        ],
+        defaultState: {
+          vpsUrl: '',
+          vpsPassword: '',
+        },
+      },
+      sub2api: {
+        id: 'sub2api',
+        label: 'SUB2API',
+        groups: [
+          'grok-target-sub2api',
+        ],
+        defaultState: {
+          sub2apiUrl: '',
+          sub2apiEmail: '',
+          sub2apiPassword: '',
+          sub2apiGroupName: 'codex',
+          sub2apiAccountPriority: 1,
+        },
+      },
       webchat2api: {
         id: 'webchat2api',
         label: 'webchat2api',
@@ -87,6 +112,33 @@
           },
         ],
       },
+      'grok-device-confirm': {
+        flowId: 'grok',
+        kind: 'flow-page',
+        label: 'Grok Device 确认页',
+        readyPolicy: 'top-frame-only',
+        family: 'grok-device-confirm-family',
+        driverId: 'flows/grok/content/device-confirm-page',
+        cleanupScopes: [],
+        detectionMatchers: [
+          {
+            hostnames: [
+              'auth.x.ai',
+              'accounts.x.ai',
+            ],
+            matchMode: 'any',
+          },
+        ],
+        familyMatchers: [
+          {
+            hostnames: [
+              'auth.x.ai',
+              'accounts.x.ai',
+            ],
+            matchMode: 'any',
+          },
+        ],
+      },
     },
     driverDefinitions: {
       'flows/grok/content/register-page': {
@@ -109,6 +161,31 @@
           'grok-extract-sso-cookie',
         ],
       },
+      'flows/grok/content/device-confirm-page': {
+        sourceId: 'grok-device-confirm',
+        commands: [
+          'GROK_DEVICE_CONFIRM',
+          'grok-device-confirm',
+        ],
+      },
+      'flows/grok/background/oidc-minter': {
+        sourceId: 'grok-device-confirm',
+        commands: [
+          'grok-mint-oidc',
+        ],
+      },
+      'flows/grok/background/publisher-cpa': {
+        sourceId: 'grok-cpa',
+        commands: [
+          'grok-upload-cpa',
+        ],
+      },
+      'flows/grok/background/publisher-sub2api': {
+        sourceId: 'grok-sub2api',
+        commands: [
+          'grok-upload-sub2api',
+        ],
+      },
       'flows/grok/background/publisher-webchat2api': {
         sourceId: 'grok-webchat2api',
         commands: [
@@ -116,9 +193,20 @@
         ],
       },
     },
-    defaultTargetId: 'webchat2api',
+    defaultTargetId: 'cpa',
     settingsDefaults: {
       targets: {
+        cpa: {
+          vpsUrl: '',
+          vpsPassword: '',
+        },
+        sub2api: {
+          sub2apiUrl: '',
+          sub2apiEmail: '',
+          sub2apiPassword: '',
+          sub2apiGroupName: 'codex',
+          sub2apiAccountPriority: 1,
+        },
         webchat2api: {
           baseUrl: '',
           apiKey: '',
@@ -128,11 +216,32 @@
         stepExecutionRange: {
           enabled: false,
           fromStep: 1,
-          toStep: 6,
+          toStep: 7,
         },
       },
     },
     settingsGroups: {
+      'grok-target-cpa': {
+        id: 'grok-target-cpa',
+        label: 'CPA',
+        rowIds: [
+          'row-vps-url',
+          'row-vps-password',
+          'row-grok-sso-settings',
+        ],
+      },
+      'grok-target-sub2api': {
+        id: 'grok-target-sub2api',
+        label: 'SUB2API',
+        rowIds: [
+          'row-sub2api-url',
+          'row-sub2api-email',
+          'row-sub2api-password',
+          'row-sub2api-group',
+          'row-sub2api-account-priority',
+          'row-grok-sso-settings',
+        ],
+      },
       'grok-target-webchat2api': {
         id: 'grok-target-webchat2api',
         label: 'webchat2api',
@@ -148,6 +257,8 @@
         rowIds: [
           'row-grok-register-status',
           'row-grok-sso-status',
+          'row-grok-mint-status',
+          'row-grok-upload-status',
           'row-grok-webchat2api-upload-status',
         ],
       },
