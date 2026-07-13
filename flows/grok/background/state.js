@@ -83,6 +83,40 @@
     ));
   }
 
+
+  function normalizeBrowserCookies(values = []) {
+    if (!Array.isArray(values)) {
+      return [];
+    }
+    return values
+      .map((entry) => {
+        if (!entry || typeof entry !== 'object' || Array.isArray(entry)) {
+          return null;
+        }
+        const name = cleanString(entry.name);
+        const value = cleanString(entry.value);
+        if (!name || !value) {
+          return null;
+        }
+        return {
+          name,
+          value,
+          domain: cleanString(entry.domain),
+          path: cleanString(entry.path) || '/',
+          secure: Boolean(entry.secure),
+          httpOnly: Boolean(entry.httpOnly),
+        };
+      })
+      .filter(Boolean);
+  }
+
+  function normalizeAuthJson(value) {
+    if (!isPlainObject(value)) {
+      return null;
+    }
+    return cloneValue(value);
+  }
+
   function buildDefaultRuntimeState() {
     return {
       session: {
@@ -106,12 +140,31 @@
         currentCookie: '',
         cookies: [],
         extractedAt: 0,
+        browserCookies: [],
+      },
+      mint: {
+        status: '',
+        userCode: '',
+        verificationUri: '',
+        deviceCode: '',
+        accessToken: '',
+        refreshToken: '',
+        idToken: '',
+        expiresIn: 0,
+        expiredAt: '',
+        sub: '',
+        authJson: null,
+        mintedAt: 0,
+        message: '',
       },
       upload: {
         status: '',
         uploadedAt: 0,
         message: '',
         targetUrl: '',
+        targetId: '',
+        fileName: '',
+        accountName: '',
       },
     };
   }
@@ -140,12 +193,31 @@
         currentCookie: cleanString(merged.sso?.currentCookie || merged.ssoCookie),
         cookies: normalizeSsoCookies(merged.sso?.cookies || merged.ssoCookies),
         extractedAt: Math.max(0, normalizeInteger(merged.sso?.extractedAt)),
+        browserCookies: normalizeBrowserCookies(merged.sso?.browserCookies),
+      },
+      mint: {
+        status: cleanString(merged.mint?.status),
+        userCode: cleanString(merged.mint?.userCode),
+        verificationUri: cleanString(merged.mint?.verificationUri),
+        deviceCode: cleanString(merged.mint?.deviceCode),
+        accessToken: cleanString(merged.mint?.accessToken),
+        refreshToken: cleanString(merged.mint?.refreshToken),
+        idToken: cleanString(merged.mint?.idToken),
+        expiresIn: Math.max(0, normalizeInteger(merged.mint?.expiresIn)),
+        expiredAt: cleanString(merged.mint?.expiredAt),
+        sub: cleanString(merged.mint?.sub),
+        authJson: normalizeAuthJson(merged.mint?.authJson),
+        mintedAt: Math.max(0, normalizeInteger(merged.mint?.mintedAt)),
+        message: cleanString(merged.mint?.message),
       },
       upload: {
         status: cleanString(merged.upload?.status),
         uploadedAt: Math.max(0, normalizeInteger(merged.upload?.uploadedAt)),
         message: cleanString(merged.upload?.message),
         targetUrl: cleanString(merged.upload?.targetUrl),
+        targetId: cleanString(merged.upload?.targetId).toLowerCase(),
+        fileName: cleanString(merged.upload?.fileName),
+        accountName: cleanString(merged.upload?.accountName),
       },
     };
   }
@@ -184,6 +256,14 @@
       grokSsoCookie: normalizedRuntimeState.sso.currentCookie,
       grokSsoCookies: normalizedRuntimeState.sso.cookies,
       grokSsoExtractedAt: normalizedRuntimeState.sso.extractedAt,
+      grokSsoBrowserCookies: normalizedRuntimeState.sso.browserCookies,
+      grokMintStatus: normalizedRuntimeState.mint.status,
+      grokMintUserCode: normalizedRuntimeState.mint.userCode,
+      grokMintMessage: normalizedRuntimeState.mint.message,
+      grokMintedAt: normalizedRuntimeState.mint.mintedAt,
+      grokUploadTargetId: normalizedRuntimeState.upload.targetId,
+      grokUploadFileName: normalizedRuntimeState.upload.fileName,
+      grokUploadAccountName: normalizedRuntimeState.upload.accountName,
       grokWebchat2ApiUploadStatus: normalizedRuntimeState.upload.status,
       grokWebchat2ApiUploadedAt: normalizedRuntimeState.upload.uploadedAt,
       grokWebchat2ApiUploadMessage: normalizedRuntimeState.upload.message,
@@ -202,6 +282,7 @@
       session: {},
       register: {},
       sso: {},
+      mint: {},
       upload: {},
     };
     assignPositiveInteger(flatRuntime.session, 'registerTabId', state.grokRegisterTabId);
@@ -222,6 +303,16 @@
     assignPositiveInteger(flatRuntime.upload, 'uploadedAt', state.grokWebchat2ApiUploadedAt);
     assignCleanString(flatRuntime.upload, 'message', state.grokWebchat2ApiUploadMessage);
     assignCleanString(flatRuntime.upload, 'targetUrl', state.grokWebchat2ApiTargetUrl);
+    assignCleanString(flatRuntime.upload, 'targetId', state.grokUploadTargetId);
+    assignCleanString(flatRuntime.upload, 'fileName', state.grokUploadFileName);
+    assignCleanString(flatRuntime.upload, 'accountName', state.grokUploadAccountName);
+    assignCleanString(flatRuntime.mint, 'status', state.grokMintStatus);
+    assignCleanString(flatRuntime.mint, 'userCode', state.grokMintUserCode);
+    assignCleanString(flatRuntime.mint, 'message', state.grokMintMessage);
+    assignPositiveInteger(flatRuntime.mint, 'mintedAt', state.grokMintedAt);
+    if (Array.isArray(state.grokSsoBrowserCookies) && state.grokSsoBrowserCookies.length) {
+      flatRuntime.sso.browserCookies = state.grokSsoBrowserCookies;
+    }
     return normalizeRuntimeState(deepMerge(deepMerge(runtimeFlowState.grok || {}, legacyFlowState), flatRuntime));
   }
 
@@ -314,8 +405,32 @@
       case 'grok-submit-verification-code':
         return buildRegisterOnlyResetPatch(currentState, {});
       case 'grok-submit-profile':
-      case 'grok-extract-sso-cookie':
-        return buildSsoResetPatch(currentState);
+      case 'grok-extract-sso-cookie': {
+        const currentRuntimeState = ensureRuntimeState(currentState);
+        return buildRuntimeStatePatch(currentState, {
+          ...currentRuntimeState,
+          sso: buildDefaultRuntimeState().sso,
+          mint: buildDefaultRuntimeState().mint,
+          upload: buildDefaultRuntimeState().upload,
+        });
+      }
+      case 'grok-mint-oidc': {
+        const currentRuntimeState = ensureRuntimeState(currentState);
+        return buildRuntimeStatePatch(currentState, {
+          ...currentRuntimeState,
+          mint: buildDefaultRuntimeState().mint,
+          upload: buildDefaultRuntimeState().upload,
+        });
+      }
+      case 'grok-upload-cpa':
+      case 'grok-upload-sub2api':
+      case 'grok-upload-sso-to-webchat2api': {
+        const currentRuntimeState = ensureRuntimeState(currentState);
+        return buildRuntimeStatePatch(currentState, {
+          ...currentRuntimeState,
+          upload: buildDefaultRuntimeState().upload,
+        });
+      }
       default:
         return {};
     }
@@ -396,6 +511,30 @@
     if (Object.prototype.hasOwnProperty.call(payload, 'grokWebchat2ApiTargetUrl')) {
       patch.upload = { ...(patch.upload || {}), targetUrl: payload.grokWebchat2ApiTargetUrl };
     }
+    if (Object.prototype.hasOwnProperty.call(payload, 'grokUploadTargetId')) {
+      patch.upload = { ...(patch.upload || {}), targetId: payload.grokUploadTargetId };
+    }
+    if (Object.prototype.hasOwnProperty.call(payload, 'grokUploadFileName')) {
+      patch.upload = { ...(patch.upload || {}), fileName: payload.grokUploadFileName };
+    }
+    if (Object.prototype.hasOwnProperty.call(payload, 'grokUploadAccountName')) {
+      patch.upload = { ...(patch.upload || {}), accountName: payload.grokUploadAccountName };
+    }
+    if (Object.prototype.hasOwnProperty.call(payload, 'grokMintStatus')) {
+      patch.mint = { ...(patch.mint || {}), status: payload.grokMintStatus };
+    }
+    if (Object.prototype.hasOwnProperty.call(payload, 'grokMintUserCode')) {
+      patch.mint = { ...(patch.mint || {}), userCode: payload.grokMintUserCode };
+    }
+    if (Object.prototype.hasOwnProperty.call(payload, 'grokMintMessage')) {
+      patch.mint = { ...(patch.mint || {}), message: payload.grokMintMessage };
+    }
+    if (Object.prototype.hasOwnProperty.call(payload, 'grokMintedAt')) {
+      patch.mint = { ...(patch.mint || {}), mintedAt: payload.grokMintedAt };
+    }
+    if (Object.prototype.hasOwnProperty.call(payload, 'grokSsoBrowserCookies')) {
+      patch.sso = { ...(patch.sso || {}), browserCookies: payload.grokSsoBrowserCookies };
+    }
     if (!Object.keys(patch).length) {
       return {};
     }
@@ -415,6 +554,7 @@
     buildSessionStatePatch,
     buildStateView,
     ensureRuntimeState,
+    normalizeRuntimeState,
     normalizeSsoCookies,
     projectRuntimeFields,
   };

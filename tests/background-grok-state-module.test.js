@@ -210,3 +210,90 @@ test('grok downstream reset clears only the state owned by the restarted tail', 
   assert.equal(emailPatch.grokRegisterStatus, '');
   assert.equal(emailPatch.grokRegisterTabId, 7);
 });
+
+test('grok state normalizes mint and upload runtime fields', () => {
+  const api = loadGrokStateApi();
+  const runtime = api.normalizeRuntimeState
+    ? api.normalizeRuntimeState({
+      mint: {
+        status: 'authorized',
+        userCode: 'ABCD-EFGH',
+        accessToken: 'at',
+        refreshToken: 'rt',
+        authJson: { type: 'xai', email: 'a@b.com' },
+        mintedAt: 10,
+      },
+      upload: {
+        status: 'uploaded',
+        targetId: 'cpa',
+        fileName: 'xai-a@b.com.json',
+        uploadedAt: 20,
+      },
+    })
+    : api.ensureRuntimeState({
+      runtimeState: {
+        flowState: {
+          grok: {
+            mint: {
+              status: 'authorized',
+              userCode: 'ABCD-EFGH',
+              accessToken: 'at',
+              refreshToken: 'rt',
+              authJson: { type: 'xai', email: 'a@b.com' },
+              mintedAt: 10,
+            },
+            upload: {
+              status: 'uploaded',
+              targetId: 'cpa',
+              fileName: 'xai-a@b.com.json',
+              uploadedAt: 20,
+            },
+          },
+        },
+      },
+    });
+
+  assert.equal(runtime.mint.status, 'authorized');
+  assert.equal(runtime.mint.userCode, 'ABCD-EFGH');
+  assert.equal(runtime.mint.accessToken, 'at');
+  assert.equal(runtime.mint.authJson.type, 'xai');
+  assert.equal(runtime.upload.targetId, 'cpa');
+  assert.equal(runtime.upload.fileName, 'xai-a@b.com.json');
+
+  const projected = api.projectRuntimeFields(runtime);
+  assert.equal(projected.grokMintStatus, 'authorized');
+  assert.equal(projected.grokUploadTargetId, 'cpa');
+  assert.equal(projected.grokUploadFileName, 'xai-a@b.com.json');
+});
+
+test('buildFreshKeepState clears mint tokens and upload result', () => {
+  const api = loadGrokStateApi();
+  const patch = api.buildFreshKeepState({
+    runtimeState: {
+      flowState: {
+        grok: {
+          mint: {
+            status: 'authorized',
+            accessToken: 'at',
+            refreshToken: 'rt',
+            authJson: { type: 'xai' },
+            mintedAt: 10,
+          },
+          upload: {
+            status: 'uploaded',
+            targetId: 'cpa',
+            fileName: 'xai-a@b.com.json',
+            uploadedAt: 20,
+          },
+        },
+      },
+    },
+  });
+
+  assert.equal(patch.grokMintStatus, '');
+  assert.equal(patch.runtimeState.flowState.grok.mint.accessToken, '');
+  assert.equal(patch.runtimeState.flowState.grok.mint.authJson, null);
+  assert.equal(patch.runtimeState.flowState.grok.upload.status, '');
+  assert.equal(patch.runtimeState.flowState.grok.upload.targetId, '');
+  assert.equal(patch.runtimeState.flowState.grok.upload.fileName, '');
+});
