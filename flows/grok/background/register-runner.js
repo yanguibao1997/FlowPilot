@@ -335,6 +335,61 @@
       return cleanString(value).replace(/[^A-Za-z0-9]/g, '');
     }
 
+
+    async function collectGrokBrowserCookies(ssoCookie = '') {
+      const browserCookies = [];
+      const seen = new Set();
+      const pushCookie = (cookie = {}) => {
+        const name = cleanString(cookie.name);
+        const value = cleanString(cookie.value);
+        if (!name || !value) {
+          return;
+        }
+        const domain = cleanString(cookie.domain) || '.x.ai';
+        const path = cleanString(cookie.path) || '/';
+        const key = `${name}|${value}|${domain}|${path}`;
+        if (seen.has(key)) {
+          return;
+        }
+        seen.add(key);
+        browserCookies.push({
+          name,
+          value,
+          domain,
+          path,
+          secure: cookie.secure !== false,
+          httpOnly: Boolean(cookie.httpOnly),
+        });
+      };
+
+      if (chrome?.cookies?.getAll) {
+        const domains = ['.x.ai', 'x.ai', 'accounts.x.ai', '.accounts.x.ai', 'auth.x.ai', 'grok.com', '.grok.com'];
+        for (const domain of domains) {
+          const list = await chrome.cookies.getAll({ domain }).catch(() => []);
+          for (const cookie of list || []) {
+            pushCookie(cookie);
+          }
+        }
+      }
+
+      const ssoValue = cleanString(ssoCookie);
+      if (ssoValue) {
+        for (const name of ['sso', 'sso-rw']) {
+          for (const domain of ['.x.ai', 'accounts.x.ai', '.accounts.x.ai', 'auth.x.ai', 'grok.com', '.grok.com']) {
+            pushCookie({
+              name,
+              value: ssoValue,
+              domain,
+              path: '/',
+              secure: true,
+              httpOnly: true,
+            });
+          }
+        }
+      }
+      return browserCookies;
+    }
+
     async function readSsoCookieFromChrome() {
       if (!chrome?.cookies?.get) {
         return '';
@@ -681,10 +736,12 @@
           throw new Error('未找到 x.ai/grok sso Cookie。');
         }
 
+        const browserCookies = await collectGrokBrowserCookies(ssoCookie);
         const completedAt = Date.now();
         const completionPatch = {
           grokSsoCookie: ssoCookie,
           grokSsoCookies: [ssoCookie],
+          grokSsoBrowserCookies: browserCookies,
           grokSsoExtractedAt: completedAt,
           grokCompletedAt: completedAt,
           grokRegisterStatus: 'completed',
@@ -700,13 +757,32 @@
             sso: {
               currentCookie: ssoCookie,
               cookies: [ssoCookie],
+              browserCookies,
               extractedAt: completedAt,
+            },
+            mint: {
+              status: '',
+              userCode: '',
+              verificationUri: '',
+              deviceCode: '',
+              accessToken: '',
+              refreshToken: '',
+              idToken: '',
+              expiresIn: 0,
+              expiredAt: '',
+              sub: '',
+              authJson: null,
+              mintedAt: 0,
+              message: '',
             },
             upload: {
               status: '',
               uploadedAt: 0,
               message: '',
               targetUrl: '',
+              targetId: '',
+              fileName: '',
+              accountName: '',
             },
             session: {
               lastError: '',

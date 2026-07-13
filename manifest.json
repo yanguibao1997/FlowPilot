@@ -141,6 +141,24 @@
         "content/duck-mail.js"
       ],
       "run_at": "document_idle"
+    },
+    {
+      "matches": [
+        "https://auth.x.ai/*",
+        "https://accounts.x.ai/*"
+      ],
+      "js": [
+        "content/activation-utils.js",
+        "flows/openai/index.js",
+        "flows/kiro/index.js",
+        "flows/grok/index.js",
+        "flows/index.js",
+        "core/flow-kernel/flow-registry.js",
+        "core/flow-kernel/source-registry.js",
+        "content/utils.js",
+        "flows/grok/content/device-confirm-page.js"
+      ],
+      "run_at": "document_idle"
     }
   ],
   "action": {

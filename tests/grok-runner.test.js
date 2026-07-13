@@ -293,6 +293,7 @@ test('grok SSO extraction stores only the current cookie without logging the sec
     chrome: {
       cookies: {
         get: async () => ({ value: 'new-cookie' }),
+        getAll: async () => ([{ name: 'sso', value: 'new-cookie', domain: '.x.ai', path: '/', secure: true, httpOnly: true }]),
       },
       tabs: {
         get: async (tabId) => ({ id: tabId }),
@@ -326,6 +327,8 @@ test('grok SSO extraction stores only the current cookie without logging the sec
   assert.deepEqual(completedPayload.grokSsoCookies, ['new-cookie']);
   assert.equal(completedPayload.grokWebchat2ApiUploadStatus, '');
   assert.equal(getGrokRuntime(completedPayload).sso.currentCookie, 'new-cookie');
+  assert.ok(Array.isArray(getGrokRuntime(completedPayload).sso.browserCookies));
+  assert.ok(getGrokRuntime(completedPayload).sso.browserCookies.length >= 1);
   assert.deepEqual(getGrokRuntime(completedPayload).sso.cookies, ['new-cookie']);
   assert.equal(getGrokRuntime(completedPayload).upload.status, '');
   assert.equal(getGrokRuntime(completedPayload).upload.targetUrl, '');
