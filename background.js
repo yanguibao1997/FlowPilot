@@ -49,6 +49,10 @@ importScripts(
   'flows/kiro/background/desktop-client.js',
   'flows/kiro/background/desktop-authorize-runner.js',
   'flows/kiro/background/publisher-kiro-rs.js',
+  'flows/grok/background/credential-schema.js',
+  'flows/grok/background/oidc-minter.js',
+  'flows/grok/background/publisher-cpa.js',
+  'flows/grok/background/publisher-sub2api.js',
   'flows/grok/background/publisher-webchat2api.js',
   'flows/openai/background/session-reader.js',
   'flows/openai/background/publisher-webchat.js',
@@ -11159,6 +11163,9 @@ const AUTO_RUN_BACKGROUND_COMPLETED_STEP_KEYS = new Set([
   'grok-submit-verification-code',
   'grok-submit-profile',
   'grok-extract-sso-cookie',
+  'grok-mint-oidc',
+  'grok-upload-cpa',
+  'grok-upload-sub2api',
   'grok-upload-sso-to-webchat2api',
 ]);
 const STEP_COMPLETION_SIGNAL_STEP_KEYS = new Set([
@@ -13821,6 +13828,7 @@ const OPENAI_AUTH_INJECT_FILES = ['content/utils.js', 'content/operation-delay.j
 const KIRO_REGISTER_INJECT_FILES = ['flows/openai/index.js', 'flows/kiro/index.js', 'flows/grok/index.js', 'flows/index.js', 'core/flow-kernel/flow-registry.js', 'core/flow-kernel/source-registry.js', 'shared/kiro-timeouts.js', 'content/utils.js', 'flows/kiro/content/register-page.js'];
 const KIRO_DESKTOP_AUTHORIZE_INJECT_FILES = ['flows/openai/index.js', 'flows/kiro/index.js', 'flows/grok/index.js', 'flows/index.js', 'core/flow-kernel/flow-registry.js', 'core/flow-kernel/source-registry.js', 'shared/kiro-timeouts.js', 'content/utils.js', 'flows/kiro/content/desktop-authorize-page.js'];
 const GROK_REGISTER_INJECT_FILES = ['flows/openai/index.js', 'flows/kiro/index.js', 'flows/grok/index.js', 'flows/index.js', 'core/flow-kernel/flow-registry.js', 'core/flow-kernel/source-registry.js', 'content/utils.js', 'flows/grok/content/register-page.js'];
+const GROK_DEVICE_CONFIRM_INJECT_FILES = ['flows/openai/index.js', 'flows/kiro/index.js', 'flows/grok/index.js', 'flows/index.js', 'core/flow-kernel/flow-registry.js', 'core/flow-kernel/source-registry.js', 'content/utils.js', 'flows/grok/content/device-confirm-page.js'];
 const panelBridge = self.MultiPageBackgroundPanelBridge?.createPanelBridge({
   chrome,
   addLog,
@@ -14366,6 +14374,145 @@ const kiroPublisher = self.MultiPageBackgroundKiroPublisherKiroRs?.createKiroRsP
   maybeSubmitFlowContribution,
   setState,
 });
+const grokOidcMinter = self.MultiPageBackgroundGrokOidcMinter?.createGrokOidcMinter({
+  addLog,
+  chrome,
+  completeNodeFromBackground,
+  ensureContentScriptReadyOnTab,
+  fetchImpl: typeof fetch === 'function' ? fetch.bind(globalThis) : null,
+  getState,
+  getTabId,
+  isTabAlive,
+  registerTab,
+  reuseOrCreateTab,
+  sendToContentScriptResilient,
+  setState,
+  sleepWithStop,
+  throwIfStopped,
+  waitForTabStableComplete,
+  runDeviceConfirmInTab: async ({
+    nodeId = 'grok-mint-oidc',
+    email = '',
+    password = '',
+    ssoCookie = '',
+    browserCookies = [],
+    userCode = '',
+    verificationUriComplete = '',
+    timeoutMs = 240000,
+  } = {}) => {
+    const sourceId = self.MultiPageBackgroundGrokOidcMinter?.GROK_DEVICE_CONFIRM_SOURCE_ID || 'grok-device-confirm';
+    const targetUrl = String(verificationUriComplete || '').trim();
+    if (!targetUrl) {
+      throw new Error('缺少 device confirmation URL。');
+    }
+    // Best-effort cookie inject before opening confirm page.
+    if (chrome?.cookies?.set && Array.isArray(browserCookies)) {
+      for (const cookie of browserCookies) {
+        try {
+          const domain = String(cookie.domain || '.x.ai').replace(/^\.+/, '');
+          const path = String(cookie.path || '/') || '/';
+          await chrome.cookies.set({
+            url: `https://${domain}${path.startsWith('/') ? path : `/${path}`}`,
+            name: cookie.name,
+            value: cookie.value,
+            domain: cookie.domain || undefined,
+            path,
+            secure: cookie.secure !== false,
+            httpOnly: Boolean(cookie.httpOnly),
+            sameSite: 'no_restriction',
+          });
+        } catch (_error) {
+          // ignore individual cookie failures
+        }
+      }
+    } else if (chrome?.cookies?.set && ssoCookie) {
+      for (const domain of ['.x.ai', 'accounts.x.ai', 'auth.x.ai', 'grok.com']) {
+        try {
+          await chrome.cookies.set({
+            url: `https://${domain.replace(/^\./, '')}/`,
+            name: 'sso',
+            value: ssoCookie,
+            domain,
+            path: '/',
+            secure: true,
+            httpOnly: true,
+            sameSite: 'no_restriction',
+          });
+        } catch (_error) {
+          // ignore
+        }
+      }
+    }
+
+    const tabId = await reuseOrCreateTab(sourceId, targetUrl, {
+      inject: Array.isArray(GROK_DEVICE_CONFIRM_INJECT_FILES) ? GROK_DEVICE_CONFIRM_INJECT_FILES : null,
+      injectSource: sourceId,
+    });
+    if (!Number.isInteger(tabId)) {
+      throw new Error('无法打开 Grok device 确认页。');
+    }
+    await registerTab(sourceId, tabId);
+    if (typeof waitForTabStableComplete === 'function') {
+      await waitForTabStableComplete(tabId, {
+        timeoutMs: Math.min(Number(timeoutMs) || 240000, 90000),
+        retryDelayMs: 300,
+        stableMs: 1200,
+        initialDelayMs: 120,
+      });
+    }
+    if (typeof ensureContentScriptReadyOnTab === 'function') {
+      await ensureContentScriptReadyOnTab(sourceId, tabId, {
+        inject: Array.isArray(GROK_DEVICE_CONFIRM_INJECT_FILES) ? GROK_DEVICE_CONFIRM_INJECT_FILES : null,
+        injectSource: sourceId,
+        timeoutMs: Math.min(Number(timeoutMs) || 240000, 90000),
+        retryDelayMs: 700,
+        logMessage: 'Grok device 确认页内容脚本未就绪，正在等待...',
+      });
+    }
+    if (typeof sendToContentScriptResilient !== 'function') {
+      throw new Error('Grok device 确认页通信能力不可用。');
+    }
+    const result = await sendToContentScriptResilient(sourceId, {
+      type: 'EXECUTE_NODE',
+      nodeId: 'GROK_DEVICE_CONFIRM',
+      command: 'GROK_DEVICE_CONFIRM',
+      step: 6,
+      source: 'background',
+      payload: {
+        email,
+        password,
+        ssoCookie,
+        browserCookies,
+        userCode,
+        timeoutMs,
+      },
+    }, {
+      timeoutMs: Math.max(30000, Number(timeoutMs) || 240000),
+      retryDelayMs: 700,
+      logMessage: '步骤 6：正在执行 device 确认页自动化...',
+    });
+    if (result?.error) {
+      throw new Error(result.error);
+    }
+    return result || { ok: true };
+  },
+});
+const grokCpaPublisher = self.MultiPageBackgroundGrokPublisherCpa?.createGrokCpaPublisher({
+  addLog,
+  completeNodeFromBackground,
+  getState,
+  setState,
+  createCpaApi: self.MultiPageBackgroundCpaApi?.createCpaApi,
+});
+const grokSub2ApiPublisher = self.MultiPageBackgroundGrokPublisherSub2Api?.createGrokSub2ApiPublisher({
+  addLog,
+  completeNodeFromBackground,
+  getState,
+  setState,
+  createSub2ApiApi: self.MultiPageBackgroundSub2ApiApi?.createSub2ApiApi,
+  normalizeSub2ApiUrl,
+  DEFAULT_SUB2API_GROUP_NAME,
+});
 const grokWebchat2ApiPublisher = self.MultiPageBackgroundGrokPublisherWebchat2Api?.createGrokWebchat2ApiPublisher({
   addLog,
   completeNodeFromBackground,
@@ -14486,6 +14633,9 @@ const stepExecutorsByKey = {
   'grok-submit-verification-code': (state) => grokRegisterRunner.executeGrokSubmitVerificationCode(state),
   'grok-submit-profile': (state) => grokRegisterRunner.executeGrokSubmitProfile(state),
   'grok-extract-sso-cookie': (state) => grokRegisterRunner.executeGrokExtractSsoCookie(state),
+  'grok-mint-oidc': (state) => grokOidcMinter.executeGrokMintOidc(state),
+  'grok-upload-cpa': (state) => grokCpaPublisher.executeGrokUploadCpa(state),
+  'grok-upload-sub2api': (state) => grokSub2ApiPublisher.executeGrokUploadSub2Api(state),
   'grok-upload-sso-to-webchat2api': (state) => grokWebchat2ApiPublisher.executeGrokUploadSsoToWebchat2Api(state),
 };
 const messageRouter = self.MultiPageBackgroundMessageRouter?.createMessageRouter({
