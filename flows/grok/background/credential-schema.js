@@ -199,63 +199,92 @@
     return null;
   }
 
+  function expiresAtSecondsFromAuth(authJson = {}) {
+    const ms = expiresAtMsFromAuth(authJson);
+    if (!Number.isFinite(ms) || ms <= 0) {
+      return null;
+    }
+    return Math.floor(ms / 1000);
+  }
+
+  /**
+   * SUB2API admin account body for Grok/xAI OAuth.
+   * Shape aligned with imported sample (platform=grok group type):
+   * {
+   *   name, platform:"grok", type:"oauth",
+   *   credentials:{ access_token, refresh_token, id_token, email, expires_at, client_id, ... },
+   *   extra, concurrency, priority, rate_multiplier, auto_pause_on_expired
+   * }
+   */
   function buildSub2ApiXaiAccount(authJson = {}, options = {}) {
     const auth = isPlainObject(authJson) ? authJson : {};
     const accessToken = cleanString(auth.access_token || auth.accessToken);
     const refreshToken = cleanString(auth.refresh_token || auth.refreshToken);
+    const idToken = cleanString(auth.id_token || auth.idToken);
     const email = cleanString(auth.email).toLowerCase();
     const sub = cleanString(auth.sub);
-    const baseUrl = normalizeBaseUrl(auth.base_url || auth.baseUrl || DEFAULT_BASE_URL);
-    const expired = cleanString(auth.expired);
-    const expiresAt = expiresAtMsFromAuth(auth);
-    const name = email || sub || 'xAI Account';
+    const name = email || sub || 'Grok Account';
     const priority = Number.isFinite(Number(options.priority))
       ? Math.floor(Number(options.priority))
       : 1;
     const concurrency = Number.isFinite(Number(options.concurrency))
       ? Math.floor(Number(options.concurrency))
       : 10;
+    const rateMultiplier = Number.isFinite(Number(options.rateMultiplier || options.rate_multiplier))
+      ? Number(options.rateMultiplier || options.rate_multiplier)
+      : 1;
     const groupIds = Array.isArray(options.groupIds || options.group_ids)
-      ? (options.groupIds || options.group_ids).map((entry) => cleanString(entry)).filter(Boolean)
+      ? (options.groupIds || options.group_ids)
+        .map((entry) => {
+          const numeric = Number(entry);
+          return Number.isFinite(numeric) && numeric > 0 ? numeric : cleanString(entry);
+        })
+        .filter((entry) => entry !== '' && entry !== null && entry !== undefined)
       : [];
-    const proxyId = cleanString(options.proxyId || options.proxy_id);
+    const proxyIdRaw = options.proxyId ?? options.proxy_id;
+    const proxyIdNumeric = Number(proxyIdRaw);
+    const proxyId = Number.isFinite(proxyIdNumeric) && proxyIdNumeric > 0
+      ? proxyIdNumeric
+      : cleanString(proxyIdRaw);
+    const expiresAtSec = expiresAtSecondsFromAuth(auth);
+    const clientId = cleanString(auth.client_id || auth.clientId || options.clientId) || CLIENT_ID;
 
+    // Prefer the working sub2api "grok" platform shape used by imported accounts.
     const account = {
       name,
-      platform: 'xai',
+      platform: 'grok',
       type: 'oauth',
-      auto_pause_on_expired: expiresAt ? true : null,
-      expires_at: expiresAt,
-      concurrency,
-      priority,
       credentials: {
         access_token: accessToken,
-        refresh_token: refreshToken,
-        id_token: cleanString(auth.id_token || auth.idToken),
-        token_type: cleanString(auth.token_type || auth.tokenType) || 'Bearer',
-        expires_in: auth.expires_in ?? auth.expiresIn ?? null,
-        expired,
+        chatgpt_account_id: '',
+        chatgpt_user_id: '',
+        client_id: clientId,
         email,
-        sub,
-        base_url: baseUrl,
-        token_endpoint: cleanString(auth.token_endpoint || auth.tokenEndpoint) || DEFAULT_TOKEN_ENDPOINT,
-        redirect_uri: cleanString(auth.redirect_uri || auth.redirectUri) || DEFAULT_REDIRECT_URI,
-        headers: isPlainObject(auth.headers) ? cloneValue(auth.headers) : {},
+        expires_at: expiresAtSec,
+        id_token: idToken,
+        organization_id: '',
+        plan_type: cleanString(options.planType || auth.plan_type || auth.planType) || 'free',
+        refresh_token: refreshToken,
+        session_token: '',
       },
       extra: {
         email,
-        email_key: emailKey(email),
-        name,
-        auth_provider: 'xai',
+        auth_provider: '',
         source: cleanString(options.source) || 'flowpilot-grok',
-        last_refresh: cleanString(auth.last_refresh || auth.lastRefresh) || nowIso(),
+        openai_oauth_responses_websockets_v2_enabled: false,
+        openai_oauth_responses_websockets_v2_mode: 'off',
+        privacy_mode: 'training_off',
       },
+      concurrency,
+      priority,
+      rate_multiplier: rateMultiplier,
+      auto_pause_on_expired: true,
     };
 
     if (groupIds.length) {
       account.group_ids = groupIds;
     }
-    if (proxyId) {
+    if (proxyId !== '' && proxyId !== null && proxyId !== undefined) {
       account.proxy_id = proxyId;
     }
 
@@ -272,5 +301,6 @@
     buildCpaXaiAuthJson,
     buildSub2ApiXaiAccount,
     expiresAtMsFromAuth,
+    expiresAtSecondsFromAuth,
   };
 });

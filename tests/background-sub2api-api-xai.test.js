@@ -19,19 +19,19 @@ function loadSub2ApiModule() {
   return globalScope.MultiPageBackgroundSub2ApiApi;
 }
 
-test('sub2api createXaiAccount posts platform xai oauth account', async () => {
+test('sub2api createXaiAccount posts platform grok oauth account', async () => {
   const apiModule = loadSub2ApiModule();
   const calls = [];
   const api = apiModule.createSub2ApiApi({
     normalizeSub2ApiUrl: (value) => value,
-    DEFAULT_SUB2API_GROUP_NAME: 'codex',
+    DEFAULT_SUB2API_GROUP_NAME: 'grok',
     fetchImpl: async (url, options = {}) => {
       calls.push({ url: String(url), options });
       if (String(url).endsWith('/api/v1/auth/login')) {
         return createJsonResponse({ access_token: 'admin-token' });
       }
       if (String(url).includes('/api/v1/admin/groups/all')) {
-        return createJsonResponse([{ id: 11, name: 'codex' }]);
+        return createJsonResponse([{ id: 11, name: 'grok', platform: 'grok' }]);
       }
       if (String(url).endsWith('/api/v1/admin/accounts')) {
         return createJsonResponse({ id: 'acc1', name: 'a@b.com' });
@@ -44,7 +44,7 @@ test('sub2api createXaiAccount posts platform xai oauth account', async () => {
     sub2apiUrl: 'http://127.0.0.1:8080/admin/accounts',
     sub2apiEmail: 'admin@x.com',
     sub2apiPassword: 'pw',
-    sub2apiGroupName: 'codex',
+    sub2apiGroupName: 'grok',
     sub2apiAccountPriority: 3,
   }, {
     type: 'xai',
@@ -58,7 +58,10 @@ test('sub2api createXaiAccount posts platform xai oauth account', async () => {
   const createCall = calls.find((entry) => String(entry.url).endsWith('/api/v1/admin/accounts'));
   assert.ok(createCall);
   const body = JSON.parse(createCall.options.body);
-  assert.equal(body.platform, 'xai');
+  assert.equal(body.platform, 'grok');
+  assert.equal(body.credentials.email, 'a@b.com');
+  assert.equal(body.credentials.plan_type, 'free');
+  assert.equal(body.rate_multiplier, 1);
   assert.equal(body.type, 'oauth');
   assert.equal(body.credentials.access_token, 'at');
   assert.equal(body.priority, 3);

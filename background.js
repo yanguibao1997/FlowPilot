@@ -14405,44 +14405,79 @@ const grokOidcMinter = self.MultiPageBackgroundGrokOidcMinter?.createGrokOidcMin
     if (!targetUrl) {
       throw new Error('缺少 device confirmation URL。');
     }
-    // Best-effort cookie inject before opening confirm page.
-    if (chrome?.cookies?.set && Array.isArray(browserCookies)) {
-      for (const cookie of browserCookies) {
+
+    const expandCookieDomains = (cookie = {}) => {
+      const name = String(cookie.name || '').trim();
+      const value = String(cookie.value || '').trim();
+      if (!name || !value) return [];
+      const path = String(cookie.path || '/') || '/';
+      const base = {
+        name,
+        value,
+        path,
+        secure: cookie.secure !== false,
+        httpOnly: Boolean(cookie.httpOnly),
+      };
+      const domains = new Set([
+        String(cookie.domain || '.x.ai'),
+        '.x.ai',
+        'accounts.x.ai',
+        '.accounts.x.ai',
+        'auth.x.ai',
+        '.auth.x.ai',
+        'grok.com',
+        '.grok.com',
+      ]);
+      if (!/^(sso|sso-rw|cf_clearance|__cf_bm)/i.test(name) && !name.toLowerCase().startsWith('sso')) {
+        return [{ ...base, domain: String(cookie.domain || '.x.ai') }];
+      }
+      return Array.from(domains).map((domain) => ({ ...base, domain }));
+    };
+
+    let injected = 0;
+    if (chrome?.cookies?.set) {
+      const items = [];
+      if (Array.isArray(browserCookies) && browserCookies.length) {
+        for (const cookie of browserCookies) {
+          items.push(...expandCookieDomains(cookie));
+        }
+      } else if (ssoCookie) {
+        for (const name of ['sso', 'sso-rw']) {
+          items.push(...expandCookieDomains({
+            name,
+            value: ssoCookie,
+            domain: '.x.ai',
+            path: '/',
+            secure: true,
+            httpOnly: true,
+          }));
+        }
+      }
+      const seen = new Set();
+      for (const cookie of items) {
+        const key = `${cookie.name}|${cookie.domain}|${cookie.path}`;
+        if (seen.has(key)) continue;
+        seen.add(key);
         try {
-          const domain = String(cookie.domain || '.x.ai').replace(/^\.+/, '');
-          const path = String(cookie.path || '/') || '/';
+          const host = String(cookie.domain || '.x.ai').replace(/^\.+/, '');
+          const path = cookie.path.startsWith('/') ? cookie.path : `/${cookie.path}`;
           await chrome.cookies.set({
-            url: `https://${domain}${path.startsWith('/') ? path : `/${path}`}`,
+            url: `https://${host}${path}`,
             name: cookie.name,
             value: cookie.value,
             domain: cookie.domain || undefined,
-            path,
+            path: cookie.path,
             secure: cookie.secure !== false,
             httpOnly: Boolean(cookie.httpOnly),
             sameSite: 'no_restriction',
           });
-        } catch (_error) {
-          // ignore individual cookie failures
-        }
-      }
-    } else if (chrome?.cookies?.set && ssoCookie) {
-      for (const domain of ['.x.ai', 'accounts.x.ai', 'auth.x.ai', 'grok.com']) {
-        try {
-          await chrome.cookies.set({
-            url: `https://${domain.replace(/^\./, '')}/`,
-            name: 'sso',
-            value: ssoCookie,
-            domain,
-            path: '/',
-            secure: true,
-            httpOnly: true,
-            sameSite: 'no_restriction',
-          });
+          injected += 1;
         } catch (_error) {
           // ignore
         }
       }
     }
+    await addLog(`步骤 6：已注入 Cookie ${injected} 个，打开 device 确认页...`, 'info', { stepKey: nodeId || 'grok-mint-oidc' });
 
     const tabId = await reuseOrCreateTab(sourceId, targetUrl, {
       inject: Array.isArray(GROK_DEVICE_CONFIRM_INJECT_FILES) ? GROK_DEVICE_CONFIRM_INJECT_FILES : null,
@@ -14451,50 +14486,184 @@ const grokOidcMinter = self.MultiPageBackgroundGrokOidcMinter?.createGrokOidcMin
     if (!Number.isInteger(tabId)) {
       throw new Error('无法打开 Grok device 确认页。');
     }
-    await registerTab(sourceId, tabId);
-    if (typeof waitForTabStableComplete === 'function') {
-      await waitForTabStableComplete(tabId, {
-        timeoutMs: Math.min(Number(timeoutMs) || 240000, 90000),
-        retryDelayMs: 300,
-        stableMs: 1200,
-        initialDelayMs: 120,
-      });
-    }
-    if (typeof ensureContentScriptReadyOnTab === 'function') {
-      await ensureContentScriptReadyOnTab(sourceId, tabId, {
-        inject: Array.isArray(GROK_DEVICE_CONFIRM_INJECT_FILES) ? GROK_DEVICE_CONFIRM_INJECT_FILES : null,
-        injectSource: sourceId,
-        timeoutMs: Math.min(Number(timeoutMs) || 240000, 90000),
-        retryDelayMs: 700,
-        logMessage: 'Grok device 确认页内容脚本未就绪，正在等待...',
-      });
-    }
+
+    const forceDeviceSource = async () => {
+      try {
+        await chrome.scripting.executeScript({
+          target: { tabId },
+          func: (injectedSource) => {
+            window.__MULTIPAGE_SOURCE = injectedSource;
+          },
+          args: [sourceId],
+        });
+      } catch (_error) {
+        // ignore
+      }
+      await registerTab(sourceId, tabId);
+    };
+
+    const ensureReady = async () => {
+      await forceDeviceSource();
+      if (typeof waitForTabStableComplete === 'function') {
+        await waitForTabStableComplete(tabId, {
+          timeoutMs: 20000,
+          retryDelayMs: 250,
+          stableMs: 700,
+          initialDelayMs: 80,
+        }).catch(() => null);
+      }
+      if (typeof ensureContentScriptReadyOnTab === 'function') {
+        await ensureContentScriptReadyOnTab(sourceId, tabId, {
+          inject: Array.isArray(GROK_DEVICE_CONFIRM_INJECT_FILES) ? GROK_DEVICE_CONFIRM_INJECT_FILES : null,
+          injectSource: sourceId,
+          timeoutMs: 30000,
+          retryDelayMs: 600,
+          logMessage: 'Grok device 确认页内容脚本未就绪，正在等待...',
+        });
+      }
+    };
+
     if (typeof sendToContentScriptResilient !== 'function') {
       throw new Error('Grok device 确认页通信能力不可用。');
     }
-    const result = await sendToContentScriptResilient(sourceId, {
-      type: 'EXECUTE_NODE',
-      nodeId: 'GROK_DEVICE_CONFIRM',
-      command: 'GROK_DEVICE_CONFIRM',
-      step: 6,
-      source: 'background',
-      payload: {
-        email,
-        password,
-        ssoCookie,
-        browserCookies,
-        userCode,
-        timeoutMs,
-      },
-    }, {
-      timeoutMs: Math.max(30000, Number(timeoutMs) || 240000),
-      retryDelayMs: 700,
-      logMessage: '步骤 6：正在执行 device 确认页自动化...',
-    });
-    if (result?.error) {
-      throw new Error(result.error);
+
+    await ensureReady();
+    await addLog('步骤 6：开始 device 确认页短轮询自动化（可跨跳转恢复）...', 'info', { stepKey: nodeId || 'grok-mint-oidc' });
+
+    const effectiveTimeoutMs = Math.max(30000, Number(timeoutMs) || 240000);
+    const deadline = Date.now() + effectiveTimeoutMs;
+    const payload = {
+      email,
+      password,
+      ssoCookie,
+      browserCookies,
+      userCode,
+      verificationUriComplete: targetUrl,
+      timeoutMs: effectiveTimeoutMs,
+    };
+
+    let lastPhase = '';
+    let lastLogAt = 0;
+    let consecutiveTransportErrors = 0;
+
+    let needsEnsure = true;
+    let tickCount = 0;
+    while (Date.now() < deadline) {
+      if (typeof throwIfStopped === 'function') {
+        throwIfStopped();
+      }
+
+      try {
+        if (needsEnsure) {
+          await ensureReady();
+          needsEnsure = false;
+        }
+        tickCount += 1;
+        const tick = await sendToContentScriptResilient(sourceId, {
+          type: 'EXECUTE_NODE',
+          nodeId: 'GROK_DEVICE_CONFIRM_TICK',
+          command: 'GROK_DEVICE_CONFIRM_TICK',
+          step: 6,
+          source: 'background',
+          payload,
+        }, {
+          // Short response window: each tick must return quickly.
+          timeoutMs: 45000,
+          responseTimeoutMs: 35000,
+          retryDelayMs: 700,
+          logMessage: '',
+        });
+
+        consecutiveTransportErrors = 0;
+        if (!tick || typeof tick !== 'object') {
+          needsEnsure = true;
+          await sleepWithStop(800);
+          continue;
+        }
+        if (tick.error) {
+          throw new Error(tick.error);
+        }
+        if (tick.ok === false) {
+          throw new Error(tick.error || 'Grok device 确认失败。');
+        }
+
+        const pageState = String(tick.pageState || tick.state || '').trim();
+        const buttonPreview = Array.isArray(tick.buttons)
+          ? tick.buttons.slice(0, 8).join(' | ')
+          : '';
+        if (tickCount <= 3 || (pageState && pageState !== lastPhase)) {
+          const changed = pageState !== lastPhase;
+          if (pageState) lastPhase = pageState;
+          await addLog(
+            `步骤 6：device tick#${tickCount} → ${pageState || 'unknown'}${buttonPreview ? `；按钮: ${buttonPreview}` : ''}${tick.url ? `；url=${String(tick.url).slice(0, 120)}` : ''}${changed ? '' : '（重复）'}`,
+            'info',
+            { stepKey: nodeId || 'grok-mint-oidc' }
+          );
+        }
+
+        if (tick.clicked) {
+          await addLog(
+            `步骤 6：device 点击「${tick.clicked}${tick.continueLabel ? `:${tick.continueLabel}` : ''}」（phase=${pageState || 'unknown'}）`,
+            'ok',
+            { stepKey: nodeId || 'grok-mint-oidc' }
+          );
+        } else if (tick.reason === 'continue_button_not_found' || tick.reason === 'no_actionable_control') {
+          if (Date.now() - lastLogAt > 8000) {
+            lastLogAt = Date.now();
+            await addLog(
+              `步骤 6：device 未找到可点控件（phase=${pageState || 'unknown'}；按钮: ${buttonPreview || '无'}）`,
+              'warn',
+              { stepKey: nodeId || 'grok-mint-oidc' }
+            );
+          }
+        }
+
+        if (pageState === 'done' || tick.done === true) {
+          await addLog('步骤 6：device 确认页自动化完成（done）。', 'ok', { stepKey: nodeId || 'grok-mint-oidc' });
+          return { ok: true, pageState: 'done', url: tick.url || '' };
+        }
+
+        // After click/navigation ticks, wait for page reload before next tick.
+        if (tick.navigating || tick.navigatingLikely) {
+          needsEnsure = true;
+          await sleepWithStop(1800);
+        } else {
+          await sleepWithStop(1000);
+        }
+
+        // periodic heartbeat
+        if (Date.now() - lastLogAt > 15000) {
+          lastLogAt = Date.now();
+          await addLog(
+            `步骤 6：device 自动化进行中（#${tickCount}, phase=${pageState || 'unknown'}, allow=${tick.allowClicks || 0}, continue=${tick.continueClicks || 0}）`,
+            'info',
+            { stepKey: nodeId || 'grok-mint-oidc' }
+          );
+        }
+      } catch (error) {
+        const message = error instanceof Error ? error.message : String(error || '');
+        const retryable = typeof isRetryableContentScriptTransportError === 'function'
+          ? isRetryableContentScriptTransportError(error)
+          : /message channel is closed|Receiving end does not exist|port closed|未响应|通信失败/i.test(message);
+
+        if (!retryable) {
+          throw error;
+        }
+
+        consecutiveTransportErrors += 1;
+        needsEnsure = true;
+        if (consecutiveTransportErrors === 1 || consecutiveTransportErrors % 4 === 0) {
+          await addLog(
+            `步骤 6：device 页跳转导致通道断开，正在重连内容脚本（${consecutiveTransportErrors}）...`,
+            'warn',
+            { stepKey: nodeId || 'grok-mint-oidc' }
+          );
+        }
+        await sleepWithStop(1000);
+      }
     }
-    return result || { ok: true };
+
+    throw new Error(`Grok device 确认超时（lastPhase=${lastPhase || 'unknown'}）。`);
   },
 });
 const grokCpaPublisher = self.MultiPageBackgroundGrokPublisherCpa?.createGrokCpaPublisher({

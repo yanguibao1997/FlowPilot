@@ -57,7 +57,7 @@
           sub2apiUrl: '',
           sub2apiEmail: '',
           sub2apiPassword: '',
-          sub2apiGroupName: 'codex',
+          sub2apiGroupName: 'grok',
           sub2apiAccountPriority: 1,
         },
       },
@@ -87,12 +87,21 @@
           {
             hostnames: [
               'accounts.x.ai',
+            ],
+            pathPrefixes: [
+              '/sign-up',
+              '/sign-in',
+              '/login',
+              '/verify',
+              '/profile',
+              '/account',
+            ],
+            matchMode: 'all',
+          },
+          {
+            hostnames: [
               'x.ai',
               'grok.com',
-            ],
-            hostnameEndsWith: [
-              '.x.ai',
-              '.grok.com',
             ],
             matchMode: 'any',
           },
@@ -124,18 +133,36 @@
           {
             hostnames: [
               'auth.x.ai',
-              'accounts.x.ai',
             ],
             matchMode: 'any',
+          },
+          {
+            hostnames: [
+              'accounts.x.ai',
+            ],
+            pathPrefixes: [
+              '/oauth2/device',
+              '/device',
+            ],
+            matchMode: 'all',
           },
         ],
         familyMatchers: [
           {
             hostnames: [
               'auth.x.ai',
-              'accounts.x.ai',
             ],
             matchMode: 'any',
+          },
+          {
+            hostnames: [
+              'accounts.x.ai',
+            ],
+            pathPrefixes: [
+              '/oauth2/device',
+              '/device',
+            ],
+            matchMode: 'all',
           },
         ],
       },
@@ -165,7 +192,9 @@
         sourceId: 'grok-device-confirm',
         commands: [
           'GROK_DEVICE_CONFIRM',
+          'GROK_DEVICE_CONFIRM_TICK',
           'grok-device-confirm',
+          'grok-device-confirm-tick',
         ],
       },
       'flows/grok/background/oidc-minter': {
@@ -204,7 +233,7 @@
           sub2apiUrl: '',
           sub2apiEmail: '',
           sub2apiPassword: '',
-          sub2apiGroupName: 'codex',
+          sub2apiGroupName: 'grok',
           sub2apiAccountPriority: 1,
         },
         webchat2api: {

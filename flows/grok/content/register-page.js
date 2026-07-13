@@ -363,6 +363,19 @@ async function extractGrokSsoCookie() {
   };
 }
 
+const GROK_REGISTER_COMMANDS = new Set([
+  'grok-open-signup-page',
+  'grok-submit-email',
+  'grok-submit-verification-code',
+  'grok-submit-profile',
+  'grok-extract-sso-cookie',
+  'GET_PAGE_STATE',
+]);
+
+function isGrokRegisterCommand(command = '') {
+  return GROK_REGISTER_COMMANDS.has(String(command || '').trim());
+}
+
 async function executeGrokCommand(command, payload = {}) {
   switch (command) {
     case 'grok-open-signup-page':
@@ -386,8 +399,12 @@ if (!document.documentElement.hasAttribute(GROK_REGISTER_PAGE_LISTENER_SENTINEL)
   document.documentElement.setAttribute(GROK_REGISTER_PAGE_LISTENER_SENTINEL, '1');
   chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
     if (message?.type !== 'EXECUTE_NODE' && message?.type !== 'GET_PAGE_STATE') return false;
-    resetStopState();
     const command = message.command || message.nodeId || message.type;
+    // Leave device-confirm commands to the device-confirm content script if co-present.
+    if (!isGrokRegisterCommand(command)) {
+      return false;
+    }
+    resetStopState();
     executeGrokCommand(command, message.payload || {})
       .then((result) => sendResponse({ ok: true, ...result }))
       .catch((error) => {

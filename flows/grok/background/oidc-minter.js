@@ -283,10 +283,13 @@
           verificationUri: session.verificationUriComplete || session.verificationUri,
           deviceCode: session.deviceCode,
         });
-        await log('步骤 6：已申请 device code，打开确认页...', 'info', nodeId);
+        await log('步骤 6：已申请 device code，打开确认页并并行轮询 token...', 'info', nodeId);
 
-        if (typeof runDeviceConfirmInTab === 'function') {
-          await runDeviceConfirmInTab({
+        // Match reference cpa_xai flow: browser confirm and token poll run together.
+        // Token poll is the source of truth; browser automation only drives the page to "允许".
+        let confirmError = null;
+        const confirmPromise = (typeof runDeviceConfirmInTab === 'function'
+          ? runDeviceConfirmInTab({
             nodeId,
             email,
             password,
@@ -295,19 +298,52 @@
             userCode: session.userCode,
             verificationUriComplete: session.verificationUriComplete,
             timeoutMs: mintTimeoutMs,
+          })
+          : Promise.resolve({ ok: true, pageState: 'skipped' })
+        ).then((result) => {
+          if (result?.error) {
+            throw new Error(result.error);
+          }
+          return result || { ok: true };
+        }).catch((error) => {
+          confirmError = error;
+          return null;
+        });
+
+        await log('步骤 6：正在轮询 token（与 device 确认并行）...', 'info', nodeId);
+        let tokens = null;
+        try {
+          tokens = await pollFn(session.deviceCode, {
+            fetchImpl,
+            interval: session.interval,
+            expiresIn: Math.min(session.expiresIn, Math.ceil(mintTimeoutMs / 1000) + 60),
+            sleepWithStop,
+            throwIfStopped,
+            log: async (message) => log(`步骤 6：${message}`, 'info', nodeId),
           });
+        } catch (pollError) {
+          // If poll failed, wait confirm error for a more actionable message.
+          await confirmPromise;
+          if (confirmError) {
+            throw new Error(`${getErrorMessage(pollError)}；device 确认：${getErrorMessage(confirmError)}`);
+          }
+          throw pollError;
         }
 
+        // Poll success is enough; confirm may still be finishing/navigating.
+        const confirmResult = await Promise.race([
+          confirmPromise,
+          (async () => {
+            await sleepWithStop(1500);
+            return { ok: true, pageState: 'poll_authorized' };
+          })(),
+        ]);
+        if (confirmError) {
+          await log(`步骤 6：token 已拿到，device 页收尾警告：${getErrorMessage(confirmError)}`, 'warn', nodeId);
+        } else if (confirmResult?.pageState) {
+          await log(`步骤 6：device 确认状态 ${confirmResult.pageState}`, 'info', nodeId);
+        }
         throwIfStopped();
-        await log('步骤 6：正在轮询 token...', 'info', nodeId);
-        const tokens = await pollFn(session.deviceCode, {
-          fetchImpl,
-          interval: session.interval,
-          expiresIn: session.expiresIn,
-          sleepWithStop,
-          throwIfStopped,
-          log: async (message) => log(`步骤 6：${message}`, 'info', nodeId),
-        });
 
         if (!credentialSchemaApi?.buildCpaXaiAuthJson) {
           throw new Error('Grok credential schema 未加载。');

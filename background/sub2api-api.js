@@ -158,6 +158,13 @@
 
     async function getGroupsByNames(origin, token, groupNames, options = {}) {
       const targetNames = normalizeSub2ApiGroupNames(groupNames);
+      // Default keeps openai groups for existing OpenAI upload path.
+      // Grok/xAI uploads should pass platform: 'grok' (or 'xai').
+      const platformFilter = normalizeString(options.platform || options.platformFilter || 'openai').toLowerCase()
+        || 'openai';
+      const allowedPlatforms = platformFilter === 'grok' || platformFilter === 'xai'
+        ? new Set(['grok', 'xai', ''])
+        : new Set([platformFilter, '']);
       const groups = await requestJson(origin, '/api/v1/admin/groups/all', {
         method: 'GET',
         token,
@@ -171,7 +178,9 @@
         const group = (Array.isArray(groups) ? groups : []).find((item) => {
           const itemName = normalizeString(item?.name).toLowerCase();
           if (!itemName || itemName !== normalized) return false;
-          return !item.platform || item.platform === 'openai';
+          const itemPlatform = normalizeString(item?.platform).toLowerCase();
+          // empty platform is treated as compatible with any requested platform filter.
+          return !itemPlatform || allowedPlatforms.has(itemPlatform);
         });
         if (group) {
           matched.push(group);
@@ -181,7 +190,8 @@
       }
 
       if (missing.length) {
-        throw new Error(`SUB2API 中未找到以下 openai 分组：${missing.join('、')}。`);
+        const platformLabel = platformFilter || 'openai';
+        throw new Error(`SUB2API 中未找到以下 ${platformLabel} 分组：${missing.join('、')}。`);
       }
 
       return matched;
@@ -799,7 +809,7 @@
     }
 
     async function createXaiAccount(state = {}, authJson = {}, options = {}) {
-      const logLabel = normalizeString(options.logLabel) || 'SUB2API xAI 账号创建';
+      const logLabel = normalizeString(options.logLabel) || 'SUB2API Grok 账号创建';
       if (!authJson || typeof authJson !== 'object' || Array.isArray(authJson)) {
         throw new Error('缺少有效的 xAI auth JSON。');
       }
@@ -807,15 +817,19 @@
         throw new Error('缺少有效的 xAI auth JSON（type=xai + access_token）。');
       }
 
-      await logWithOptions(`${logLabel}：正在登录 SUB2API 并创建 xAI 账号...`, 'info', options);
+      await logWithOptions(`${logLabel}：正在登录 SUB2API 并创建 Grok(platform=grok) 账号...`, 'info', options);
       const { origin, token } = await loginSub2Api(state, options);
-      const groupNames = state.sub2apiGroupName || DEFAULT_SUB2API_GROUP_NAME;
-      const groups = await getGroupsByNames(origin, token, groupNames, options);
+      // Grok uploads belong to grok-type groups (not openai/codex).
+      const groupNames = state.sub2apiGroupName || 'grok';
+      const groups = await getGroupsByNames(origin, token, groupNames, {
+        ...options,
+        platform: 'grok',
+      });
       const groupIds = groups
         .map((group) => Number(group?.id))
         .filter((id) => Number.isFinite(id) && id > 0);
       if (!groupIds.length) {
-        throw new Error('SUB2API 返回的目标分组 ID 无效。');
+        throw new Error('SUB2API 返回的目标 Grok 分组 ID 无效。');
       }
 
       const proxyPreference = resolveSub2ApiProxyPreference(state);
@@ -831,24 +845,40 @@
         ? schemaApi.buildSub2ApiXaiAccount(authJson, {
           priority: accountPriority,
           concurrency: DEFAULT_CONCURRENCY,
+          rateMultiplier: DEFAULT_RATE_MULTIPLIER,
           groupIds,
           proxyId,
           source: 'flowpilot-grok',
         })
         : {
-          name: normalizeString(authJson.email) || normalizeString(authJson.sub) || 'xAI Account',
-          platform: 'xai',
+          name: normalizeString(authJson.email) || normalizeString(authJson.sub) || 'Grok Account',
+          platform: 'grok',
           type: 'oauth',
           credentials: {
             access_token: normalizeString(authJson.access_token),
             refresh_token: normalizeString(authJson.refresh_token),
+            id_token: normalizeString(authJson.id_token),
             email: normalizeString(authJson.email),
-            sub: normalizeString(authJson.sub),
-            base_url: normalizeString(authJson.base_url) || 'https://cli-chat-proxy.grok.com/v1',
-            token_endpoint: normalizeString(authJson.token_endpoint) || 'https://auth.x.ai/oauth2/token',
+            expires_at: null,
+            client_id: '',
+            chatgpt_account_id: '',
+            chatgpt_user_id: '',
+            organization_id: '',
+            plan_type: 'free',
+            session_token: '',
+          },
+          extra: {
+            email: normalizeString(authJson.email),
+            auth_provider: '',
+            source: 'flowpilot-grok',
+            openai_oauth_responses_websockets_v2_enabled: false,
+            openai_oauth_responses_websockets_v2_mode: 'off',
+            privacy_mode: 'training_off',
           },
           concurrency: DEFAULT_CONCURRENCY,
           priority: accountPriority,
+          rate_multiplier: DEFAULT_RATE_MULTIPLIER,
+          auto_pause_on_expired: true,
           group_ids: groupIds,
           ...(proxyId ? { proxy_id: proxyId } : {}),
         };
@@ -860,6 +890,9 @@
       createPayload.group_ids = createPayload.group_ids
         .map((id) => Number(id))
         .filter((id) => Number.isFinite(id) && id > 0);
+      // Force platform=grok for SUB2API grok-type groups.
+      createPayload.platform = 'grok';
+      createPayload.type = createPayload.type || 'oauth';
       if (proxyId && !createPayload.proxy_id) {
         createPayload.proxy_id = proxyId;
       }
@@ -874,8 +907,8 @@
       const accountName = normalizeString(createdAccount?.name || createPayload.name);
       const accountId = createdAccount?.id;
       const verifiedStatus = accountId
-        ? `SUB2API 已创建 xAI 账号 #${accountId}`
-        : `SUB2API 已创建 xAI 账号：${accountName}`;
+        ? `SUB2API 已创建 Grok 账号 #${accountId}`
+        : `SUB2API 已创建 Grok 账号：${accountName}`;
       await logWithOptions(verifiedStatus, 'ok', options);
       return {
         verifiedStatus,
@@ -883,6 +916,7 @@
         accountId: accountId || null,
         sub2apiAccountName: accountName,
         sub2apiAccountId: accountId || null,
+        createPayload,
       };
     }
 
