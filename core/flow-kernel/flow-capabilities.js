@@ -617,6 +617,36 @@
         errors.push(buildOpenAiWebchatValidationError(capabilityState));
       }
 
+      if (capabilityState.activeFlowId === 'grok') {
+        const targetId = String(
+          capabilityState.effectiveTargetId
+          || capabilityState.requestedTargetId
+          || state?.targetId
+          || ''
+        ).trim().toLowerCase();
+        if (targetId === 'cpa') {
+          const vpsUrl = String(state?.vpsUrl || '').trim();
+          const vpsPassword = String(state?.vpsPassword || '').trim();
+          if (!vpsUrl || !vpsPassword) {
+            errors.push({
+              code: 'grok_cpa_config_incomplete',
+              message: 'Grok CPA 模式需要配置 CPA 地址和管理密钥。',
+            });
+          }
+        }
+        if (targetId === 'sub2api') {
+          const sub2apiUrl = String(state?.sub2apiUrl || '').trim();
+          const sub2apiEmail = String(state?.sub2apiEmail || '').trim();
+          const sub2apiPassword = String(state?.sub2apiPassword || '');
+          if (!sub2apiUrl || !sub2apiEmail || !sub2apiPassword) {
+            errors.push({
+              code: 'grok_sub2api_config_incomplete',
+              message: 'Grok SUB2API 模式需要配置 SUB2API 地址、账号和密码。',
+            });
+          }
+        }
+      }
+
       return {
         ok: errors.length === 0,
         errors,

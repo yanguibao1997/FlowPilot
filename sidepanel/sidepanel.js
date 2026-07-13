@@ -208,6 +208,10 @@ const rowGrokRegisterStatus = document.getElementById('row-grok-register-status'
 const displayGrokRegisterStatus = document.getElementById('display-grok-register-status');
 const rowGrokSsoStatus = document.getElementById('row-grok-sso-status');
 const displayGrokSsoStatus = document.getElementById('display-grok-sso-status');
+const rowGrokMintStatus = document.getElementById('row-grok-mint-status');
+const displayGrokMintStatus = document.getElementById('display-grok-mint-status');
+const rowGrokUploadStatus = document.getElementById('row-grok-upload-status');
+const displayGrokUploadStatus = document.getElementById('display-grok-upload-status');
 const rowGrokWebchat2ApiUploadStatus = document.getElementById('row-grok-webchat2api-upload-status');
 const displayGrokWebchat2ApiUploadStatus = document.getElementById('display-grok-webchat2api-upload-status');
 const rowGrokSsoSettings = document.getElementById('row-grok-sso-settings');
@@ -1877,6 +1881,8 @@ const TARGET_REPOSITORY_URLS = Object.freeze({
     'kiro-rs': 'https://github.com/QLHazyCoder/kiro.rs',
   }),
   grok: Object.freeze({
+    cpa: 'https://github.com/router-for-me/CLIProxyAPI',
+    sub2api: 'https://github.com/Wei-Shaw/sub2api',
     webchat2api: 'https://github.com/zqbxdev/webchat2api',
   }),
 });
@@ -3032,6 +3038,40 @@ function renderGrokRuntimeState(state = latestState) {
       ? `${currentCookie.slice(0, 8)}...${currentCookie.slice(-6)}`
       : '未提取';
     displayGrokSsoCookie.title = currentCookie ? '已隐藏完整 SSO Cookie，可使用复制' : '';
+  }
+  const mintState = runtimeState?.mint || {};
+  const mintStatus = String(
+    mintState.status
+    || state?.grokMintStatus
+    || ''
+  ).trim();
+  const mintMessage = String(
+    mintState.message
+    || state?.grokMintMessage
+    || ''
+  ).trim();
+  const mintedAt = Number(
+    mintState.mintedAt
+    || state?.grokMintedAt
+    || 0
+  ) || 0;
+  const uploadTargetId = String(
+    uploadState.targetId
+    || state?.grokUploadTargetId
+    || ''
+  ).trim().toLowerCase();
+
+  if (displayGrokMintStatus) {
+    const mintLabel = mintStatus || '未开始';
+    const mintSuffix = mintedAt ? `，${new Date(mintedAt).toLocaleString()}` : '';
+    displayGrokMintStatus.textContent = `${mintLabel}${mintMessage ? `：${mintMessage}` : ''}${mintSuffix}`;
+  }
+  if (displayGrokUploadStatus) {
+    const label = uploadStatus || '未开始';
+    const suffix = uploadedAt ? `，${new Date(uploadedAt).toLocaleString()}` : '';
+    const targetPrefix = uploadTargetId ? `[${uploadTargetId}] ` : '';
+    displayGrokUploadStatus.textContent = `${targetPrefix}${label}${uploadMessage ? `：${uploadMessage}` : ''}${suffix}`;
+    displayGrokUploadStatus.title = uploadTargetUrl || '';
   }
   if (displayGrokWebchat2ApiUploadStatus) {
     const label = getGrokWebchat2ApiUploadStatusLabel(uploadStatus);
