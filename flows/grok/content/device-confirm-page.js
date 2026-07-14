@@ -148,6 +148,16 @@ function findExactAllowButton(options = {}) {
   );
 }
 
+function listExactAllowButtons() {
+  const labels = new Set([
+    GROK_ALLOW_EXACT_TEXT,
+    'Allow',
+    'Authorize',
+    'Approve',
+  ].map((label) => normalizeVisibleText(label)));
+  return listClickableCandidates().filter((element) => labels.has(getClickableLabel(element)));
+}
+
 function collectVisibleButtonLabels(limit = 16) {
   const labels = [];
   for (const element of listClickableCandidates()) {
@@ -460,28 +470,46 @@ async function runDeviceConfirmTick(payload = {}) {
     || /授权\s*Grok|Authorize\s*Grok/i.test(text)
     || findExactAllowButton()
   ) {
-    const allowBtn = findExactAllowButton({ requireEnabled: true })
-      || findExactAllowButton({ requireVisible: false });
-    if (!allowBtn) {
+    const exactAllowButtons = listExactAllowButtons();
+    if (!exactAllowButtons.length) {
       writeDeviceConfirmJob(job);
       return buildTickResult(job, 'consent', { waiting: true, buttons, reason: 'allow_button_not_found' });
     }
-    if (!isVisible(allowBtn) || !isEnabled(allowBtn)) {
+
+    const clickableAllowButtons = exactAllowButtons.filter((element) => (
+      isVisible(element) && isEnabled(element)
+    ));
+    let clickTarget = null;
+    for (const element of clickableAllowButtons) {
+      const rect = getSerializableRect(element);
+      if (isRectCenterInViewport(rect)) {
+        clickTarget = { element, rect };
+        break;
+      }
+    }
+
+    if (!clickTarget) {
+      for (const element of clickableAllowButtons) {
+        scrollIntoViewInstant(element);
+        const rect = getSerializableRect(element);
+        if (isRectCenterInViewport(rect)) {
+          clickTarget = { element, rect };
+          break;
+        }
+      }
+    }
+
+    if (!clickTarget) {
       writeDeviceConfirmJob(job);
       return buildTickResult(job, 'consent', { waiting: true, buttons, reason: 'allow_button_not_clickable' });
     }
-    scrollIntoViewInstant(allowBtn);
-    const clickRect = getSerializableRect(allowBtn);
-    if (!clickRect || !isRectCenterInViewport(clickRect)) {
-      writeDeviceConfirmJob(job);
-      return buildTickResult(job, 'consent', { waiting: true, buttons, reason: 'allow_button_not_clickable' });
-    }
+
     writeDeviceConfirmJob(job);
     return buildTickResult(job, 'consent', {
       trustedClickRequired: true,
       clickTarget: 'allow',
-      clickLabel: getClickableLabel(allowBtn),
-      clickRect,
+      clickLabel: getClickableLabel(clickTarget.element),
+      clickRect: clickTarget.rect,
       buttons,
     });
   }
