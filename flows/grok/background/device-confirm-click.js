@@ -1,6 +1,13 @@
 (function attachBackgroundGrokDeviceConfirmClick(root, factory) {
   root.MultiPageBackgroundGrokDeviceConfirmClick = factory();
 })(typeof self !== 'undefined' ? self : globalThis, function createBackgroundGrokDeviceConfirmClickModule() {
+  const trustedDeviceClickErrors = new WeakSet();
+
+  function isTrustedDeviceClickError(error) {
+    return Boolean(error && (typeof error === 'object' || typeof error === 'function')
+      && trustedDeviceClickErrors.has(error));
+  }
+
   function normalizeTrustedClickRequest(tick) {
     if (!tick?.trustedClickRequired) {
       return null;
@@ -34,7 +41,15 @@
       throw new Error('Grok device 可信点击依赖不可用。');
     }
 
-    await clickWithDebugger(tabId, request.rect, { visibleStep: 6 });
+    try {
+      await clickWithDebugger(tabId, request.rect, { visibleStep: 6 });
+    } catch (error) {
+      const trustedClickError = error && (typeof error === 'object' || typeof error === 'function')
+        ? error
+        : new Error(String(error || 'Grok device Debugger 可信点击失败。'));
+      trustedDeviceClickErrors.add(trustedClickError);
+      throw trustedClickError;
+    }
     return {
       ...tick,
       clickLabel: request.label,
@@ -45,6 +60,7 @@
   }
 
   return {
+    isTrustedDeviceClickError,
     normalizeTrustedClickRequest,
     performTrustedDeviceClick,
   };

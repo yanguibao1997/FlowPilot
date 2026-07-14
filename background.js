@@ -14656,9 +14656,12 @@ const grokOidcMinter = self.MultiPageBackgroundGrokOidcMinter?.createGrokOidcMin
         }
       } catch (error) {
         const message = error instanceof Error ? error.message : String(error || '');
-        const retryable = typeof isRetryableContentScriptTransportError === 'function'
-          ? isRetryableContentScriptTransportError(error)
-          : /message channel is closed|Receiving end does not exist|port closed|未响应|通信失败/i.test(message);
+        const trustedClickError = self.MultiPageBackgroundGrokDeviceConfirmClick?.isTrustedDeviceClickError?.(error) === true;
+        const retryable = !trustedClickError && (
+          typeof isRetryableContentScriptTransportError === 'function'
+            ? isRetryableContentScriptTransportError(error)
+            : /message channel is closed|Receiving end does not exist|port closed|未响应|通信失败/i.test(message)
+        );
 
         if (!retryable) {
           throw error;

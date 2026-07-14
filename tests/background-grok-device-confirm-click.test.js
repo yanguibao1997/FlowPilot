@@ -93,9 +93,9 @@ test('performTrustedDeviceClick rejects non-allow trusted click target', async (
   assert.equal(calls, 0);
 });
 
-test('performTrustedDeviceClick propagates debugger failure without a success result', async () => {
+test('performTrustedDeviceClick marks and propagates retryable-looking debugger failure', async () => {
   const api = loadApi();
-  const debuggerError = new Error('debugger attach failed');
+  const debuggerError = new Error('failed to fetch while debugger attached');
   let result;
   let caught;
 
@@ -117,6 +117,7 @@ test('performTrustedDeviceClick propagates debugger failure without a success re
   }
 
   assert.strictEqual(caught, debuggerError);
+  assert.equal(api.isTrustedDeviceClickError(caught), true);
   assert.equal(result, undefined);
 });
 
@@ -151,4 +152,9 @@ test('background wires trusted device consent through debugger before navigation
   assert.match(runner, /Debugger 可信点击「\$\{tick\.clickLabel\}」/);
   assert.match(runner, /tick\.clicked\s*&&\s*!tick\.trustedClickPerformed/);
   assert.match(runner, /tick\.navigating\s*\|\|\s*tick\.navigatingLikely/);
+  assert.match(
+    runner,
+    /const\s+trustedClickError\s*=\s*self\.MultiPageBackgroundGrokDeviceConfirmClick\?\.isTrustedDeviceClickError\?\.\(error\)\s*===\s*true/
+  );
+  assert.match(runner, /const\s+retryable\s*=\s*!trustedClickError\s*&&/);
 });
