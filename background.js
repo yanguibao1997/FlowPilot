@@ -50,6 +50,7 @@ importScripts(
   'flows/kiro/background/desktop-authorize-runner.js',
   'flows/kiro/background/publisher-kiro-rs.js',
   'flows/grok/background/credential-schema.js',
+  'flows/grok/background/device-confirm-click.js',
   'flows/grok/background/oidc-minter.js',
   'flows/grok/background/publisher-cpa.js',
   'flows/grok/background/publisher-sub2api.js',
@@ -14559,7 +14560,7 @@ const grokOidcMinter = self.MultiPageBackgroundGrokOidcMinter?.createGrokOidcMin
           needsEnsure = false;
         }
         tickCount += 1;
-        const tick = await sendToContentScriptResilient(sourceId, {
+        let tick = await sendToContentScriptResilient(sourceId, {
           type: 'EXECUTE_NODE',
           nodeId: 'GROK_DEVICE_CONFIRM_TICK',
           command: 'GROK_DEVICE_CONFIRM_TICK',
@@ -14587,6 +14588,19 @@ const grokOidcMinter = self.MultiPageBackgroundGrokOidcMinter?.createGrokOidcMin
           throw new Error(tick.error || 'Grok device 确认失败。');
         }
 
+        if (tick.trustedClickRequired) {
+          tick = await self.MultiPageBackgroundGrokDeviceConfirmClick.performTrustedDeviceClick({
+            tabId,
+            tick,
+            clickWithDebugger,
+          });
+          await addLog(
+            `步骤 6：Debugger 可信点击「${tick.clickLabel}」`,
+            'ok',
+            { stepKey: nodeId || 'grok-mint-oidc' }
+          );
+        }
+
         const pageState = String(tick.pageState || tick.state || '').trim();
         const buttonPreview = Array.isArray(tick.buttons)
           ? tick.buttons.slice(0, 8).join(' | ')
@@ -14601,7 +14615,7 @@ const grokOidcMinter = self.MultiPageBackgroundGrokOidcMinter?.createGrokOidcMin
           );
         }
 
-        if (tick.clicked) {
+        if (tick.clicked && !tick.trustedClickPerformed) {
           await addLog(
             `步骤 6：device 点击「${tick.clicked}${tick.continueLabel ? `:${tick.continueLabel}` : ''}」（phase=${pageState || 'unknown'}）`,
             'ok',
