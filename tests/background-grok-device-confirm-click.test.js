@@ -93,6 +93,32 @@ test('performTrustedDeviceClick rejects non-allow trusted click target', async (
   assert.equal(calls, 0);
 });
 
+test('performTrustedDeviceClick rejects invalid tab ids before debugger call', async (t) => {
+  const api = loadApi();
+
+  for (const tabId of [-1, -2, 1.5]) {
+    await t.test(`tabId ${tabId}`, async () => {
+      let calls = 0;
+
+      await assert.rejects(
+        api.performTrustedDeviceClick({
+          tabId,
+          tick: {
+            trustedClickRequired: true,
+            clickTarget: 'allow',
+            clickRect: { centerX: 10, centerY: 20 },
+          },
+          clickWithDebugger: async () => {
+            calls += 1;
+          },
+        }),
+        /标签页 ID|tab id/i
+      );
+      assert.equal(calls, 0);
+    });
+  }
+});
+
 test('performTrustedDeviceClick marks and propagates retryable-looking debugger failure', async () => {
   const api = loadApi();
   const debuggerError = new Error('failed to fetch while debugger attached');

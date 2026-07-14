@@ -34,7 +34,7 @@
     if (!request) {
       return tick;
     }
-    if (!Number.isInteger(tabId)) {
+    if (!(Number.isInteger(tabId) && tabId >= 0)) {
       throw new Error('Grok device 可信点击需要有效的标签页 ID。');
     }
     if (typeof clickWithDebugger !== 'function') {
