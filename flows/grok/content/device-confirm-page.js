@@ -36,6 +36,30 @@ function getSerializableRect(element) {
   };
 }
 
+function isRectCenterInViewport(rect) {
+  if (!rect) return false;
+  const viewportWidth = Number(window.innerWidth || document.documentElement?.clientWidth || 0);
+  const viewportHeight = Number(window.innerHeight || document.documentElement?.clientHeight || 0);
+  return (
+    Number.isFinite(viewportWidth)
+    && Number.isFinite(viewportHeight)
+    && viewportWidth > 0
+    && viewportHeight > 0
+    && rect.centerX >= 0
+    && rect.centerX < viewportWidth
+    && rect.centerY >= 0
+    && rect.centerY < viewportHeight
+  );
+}
+
+function scrollIntoViewInstant(element) {
+  try {
+    element.scrollIntoView({ block: 'center', inline: 'center', behavior: 'instant' });
+  } catch (_error) {
+    try { element.scrollIntoView(); } catch (_error2) { /* ignore */ }
+  }
+}
+
 function isVisible(element) {
   if (!element || !(element instanceof Element)) return false;
   const style = window.getComputedStyle(element);
@@ -96,9 +120,11 @@ function findExactButtonByLabels(labels = [], options = {}) {
   if (!wanted.length) return null;
   const allowPartial = Boolean(options.allowPartial);
   const requireVisible = options.requireVisible !== false;
+  const requireEnabled = Boolean(options.requireEnabled);
   const candidates = listClickableCandidates();
   for (const element of candidates) {
     if (requireVisible && !isVisible(element)) continue;
+    if (requireEnabled && !isEnabled(element)) continue;
     const text = getClickableLabel(element);
     if (!text) continue;
     if (wanted.includes(text)) return element;
@@ -106,6 +132,7 @@ function findExactButtonByLabels(labels = [], options = {}) {
   if (!allowPartial) return null;
   for (const element of candidates) {
     if (requireVisible && !isVisible(element)) continue;
+    if (requireEnabled && !isEnabled(element)) continue;
     const text = getClickableLabel(element);
     if (!text) continue;
     if (wanted.some((label) => text === label || text.includes(label))) return element;
@@ -433,13 +460,19 @@ async function runDeviceConfirmTick(payload = {}) {
     || /授权\s*Grok|Authorize\s*Grok/i.test(text)
     || findExactAllowButton()
   ) {
-    const allowBtn = findExactAllowButton({ requireVisible: false });
+    const allowBtn = findExactAllowButton({ requireEnabled: true })
+      || findExactAllowButton({ requireVisible: false });
     if (!allowBtn) {
       writeDeviceConfirmJob(job);
       return buildTickResult(job, 'consent', { waiting: true, buttons, reason: 'allow_button_not_found' });
     }
+    if (!isVisible(allowBtn) || !isEnabled(allowBtn)) {
+      writeDeviceConfirmJob(job);
+      return buildTickResult(job, 'consent', { waiting: true, buttons, reason: 'allow_button_not_clickable' });
+    }
+    scrollIntoViewInstant(allowBtn);
     const clickRect = getSerializableRect(allowBtn);
-    if (!isVisible(allowBtn) || !isEnabled(allowBtn) || !clickRect) {
+    if (!clickRect || !isRectCenterInViewport(clickRect)) {
       writeDeviceConfirmJob(job);
       return buildTickResult(job, 'consent', { waiting: true, buttons, reason: 'allow_button_not_clickable' });
     }
