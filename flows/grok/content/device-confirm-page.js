@@ -13,12 +13,40 @@ const GROK_DEVICE_CONFIRM_COMMANDS = new Set([
   'GET_PAGE_STATE',
 ]);
 
+function getSerializableRect(element) {
+  if (!element || typeof element.getBoundingClientRect !== 'function') return null;
+  let rect;
+  try {
+    rect = element.getBoundingClientRect();
+  } catch (_error) {
+    return null;
+  }
+  const left = Number(rect?.left);
+  const top = Number(rect?.top);
+  const width = Number(rect?.width);
+  const height = Number(rect?.height);
+  if (![left, top, width, height].every(Number.isFinite) || width <= 0 || height <= 0) return null;
+  return {
+    left,
+    top,
+    width,
+    height,
+    centerX: left + (width / 2),
+    centerY: top + (height / 2),
+  };
+}
+
 function isVisible(element) {
   if (!element || !(element instanceof Element)) return false;
   const style = window.getComputedStyle(element);
   if (style.display === 'none' || style.visibility === 'hidden' || Number(style.opacity) === 0) return false;
-  const rect = element.getBoundingClientRect();
-  return rect.width > 0 && rect.height > 0;
+  return Boolean(getSerializableRect(element));
+}
+
+function isEnabled(element) {
+  if (!element || !(element instanceof Element)) return false;
+  if (element.disabled === true || element.hasAttribute?.('disabled')) return false;
+  return String(element.getAttribute?.('aria-disabled') || '').toLowerCase() !== 'true';
 }
 
 function normalizeVisibleText(value = '') {
@@ -67,16 +95,17 @@ function findExactButtonByLabels(labels = [], options = {}) {
     .filter(Boolean);
   if (!wanted.length) return null;
   const allowPartial = Boolean(options.allowPartial);
+  const requireVisible = options.requireVisible !== false;
   const candidates = listClickableCandidates();
   for (const element of candidates) {
-    if (!isVisible(element)) continue;
+    if (requireVisible && !isVisible(element)) continue;
     const text = getClickableLabel(element);
     if (!text) continue;
     if (wanted.includes(text)) return element;
   }
   if (!allowPartial) return null;
   for (const element of candidates) {
-    if (!isVisible(element)) continue;
+    if (requireVisible && !isVisible(element)) continue;
     const text = getClickableLabel(element);
     if (!text) continue;
     if (wanted.some((label) => text === label || text.includes(label))) return element;
@@ -84,9 +113,12 @@ function findExactButtonByLabels(labels = [], options = {}) {
   return null;
 }
 
-function findExactAllowButton() {
+function findExactAllowButton(options = {}) {
   // exact text only: 允许 ≠ 全部允许
-  return findExactButtonByLabels([GROK_ALLOW_EXACT_TEXT, 'Allow', 'Authorize', 'Approve']);
+  return findExactButtonByLabels(
+    [GROK_ALLOW_EXACT_TEXT, 'Allow', 'Authorize', 'Approve'],
+    options
+  );
 }
 
 function collectVisibleButtonLabels(limit = 16) {
@@ -394,49 +426,31 @@ async function runDeviceConfirmTick(payload = {}) {
     return buildTickResult(job, 'invalid_action', { navigating: true, reopenUrl, buttons });
   }
 
-  // 3) consent → REAL exact 允许
+  // 3) consent → delegate exact 允许 to a browser-level trusted click
   if (
     phase === 'consent'
     || /\/(?:oauth2\/)?device\/consent/i.test(url)
     || /授权\s*Grok|Authorize\s*Grok/i.test(text)
     || findExactAllowButton()
   ) {
-    const allowBtn = findExactAllowButton()
-      || findExactButtonByLabels([GROK_ALLOW_EXACT_TEXT, 'Allow', 'Authorize', 'Approve']);
-    if (allowBtn) {
-      job.allowClicks = Number(job.allowClicks || 0) + 1;
+    const allowBtn = findExactAllowButton({ requireVisible: false });
+    if (!allowBtn) {
       writeDeviceConfirmJob(job);
-      console.log('[MultiPage:grok-device-confirm] consent REAL click Allow', job.allowClicks);
-      simulateRealClick(allowBtn, { preferNative: true });
-      return buildTickResult(job, 'consent', { clicked: 'allow', navigatingLikely: true, buttons });
+      return buildTickResult(job, 'consent', { waiting: true, buttons, reason: 'allow_button_not_found' });
     }
-    try {
-      const form = document.querySelector('form');
-      if (form) {
-        let actionInput = form.querySelector('input[name="action"]');
-        if (!actionInput) {
-          actionInput = document.createElement('input');
-          actionInput.type = 'hidden';
-          actionInput.name = 'action';
-          form.appendChild(actionInput);
-        }
-        actionInput.value = 'allow';
-        const btn = [...form.querySelectorAll('button')].find((b) => {
-          const label = normalizeVisibleText(b.innerText || b.textContent || '');
-          return label === '允许' || label === 'Allow';
-        });
-        job.allowClicks = Number(job.allowClicks || 0) + 1;
-        writeDeviceConfirmJob(job);
-        if (btn) simulateRealClick(btn, { preferNative: true });
-        else if (typeof form.requestSubmit === 'function') form.requestSubmit();
-        else form.submit();
-        return buildTickResult(job, 'consent', { clicked: 'allow-fallback', navigatingLikely: true, buttons });
-      }
-    } catch (error) {
-      console.warn('[MultiPage:grok-device-confirm] consent fallback failed', error?.message || error);
+    const clickRect = getSerializableRect(allowBtn);
+    if (!isVisible(allowBtn) || !isEnabled(allowBtn) || !clickRect) {
+      writeDeviceConfirmJob(job);
+      return buildTickResult(job, 'consent', { waiting: true, buttons, reason: 'allow_button_not_clickable' });
     }
     writeDeviceConfirmJob(job);
-    return buildTickResult(job, 'consent', { waiting: true, buttons, reason: 'allow_button_not_found' });
+    return buildTickResult(job, 'consent', {
+      trustedClickRequired: true,
+      clickTarget: 'allow',
+      clickLabel: getClickableLabel(allowBtn),
+      clickRect,
+      buttons,
+    });
   }
 
   // 4) device code page → fill user_code + click 继续 (reference uses by_js for continue)
@@ -617,5 +631,6 @@ window.__MULTIPAGE_GROK_DEVICE_CONFIRM_PAGE__ = {
   runDeviceConfirmTick,
   getPagePhase,
   findExactAllowButton,
+  getSerializableRect,
   collectVisibleButtonLabels,
 };

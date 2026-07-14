@@ -78,8 +78,20 @@ test('device confirm recovers from Invalid action by reopening verification uri'
   assert.match(source, /Invalid action/);
   assert.match(source, /verificationUriComplete/);
   assert.match(source, /location\.assign|location\.href/);
-  assert.match(source, /requestSubmit/);
-  assert.match(source, /preferNative/);
+});
+
+test('device consent delegates exact allow activation to a trusted click', () => {
+  const source = fs.readFileSync('flows/grok/content/device-confirm-page.js', 'utf8');
+  const consentBranch = source.slice(
+    source.indexOf('// 3) consent'),
+    source.indexOf('// 4) device code')
+  );
+  assert.match(consentBranch, /trustedClickRequired\s*:\s*true/);
+  assert.match(consentBranch, /clickTarget\s*:\s*['"]allow['"]/);
+  assert.match(consentBranch, /clickRect/);
+  assert.match(consentBranch, /allow_button_not_found/);
+  assert.match(consentBranch, /allow_button_not_clickable/);
+  assert.doesNotMatch(consentBranch, /simulateRealClick|\.click\s*\(|requestSubmit|form\.submit/);
 });
 
 test('device confirm content supports short tick commands for navigation-safe automation', () => {
@@ -89,4 +101,3 @@ test('device confirm content supports short tick commands for navigation-safe au
   assert.match(source, /sessionStorage/);
   assert.match(source, /navigatingLikely|navigating/);
 });
-
