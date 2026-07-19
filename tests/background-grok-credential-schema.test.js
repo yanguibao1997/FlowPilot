@@ -34,7 +34,9 @@ test('builds CPA xai auth json and sub2api account payload', () => {
   assert.equal(account.credentials.access_token, 'at.payload.sig');
   assert.equal(account.credentials.refresh_token, 'rt');
   assert.equal(account.credentials.email, 'a@b.com');
-  assert.equal(account.credentials.plan_type, 'free');
+  assert.equal(account.credentials.base_url, 'https://cli-chat-proxy.grok.com/v1');
+  assert.equal(account.credentials.headers['x-xai-token-auth'], 'xai-grok-cli');
+  assert.equal(account.extra.auth_provider, 'xai');
   assert.equal(account.rate_multiplier, 1);
 });
 

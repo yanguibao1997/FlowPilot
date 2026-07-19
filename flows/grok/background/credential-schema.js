@@ -209,12 +209,10 @@
 
   /**
    * SUB2API admin account body for Grok/xAI OAuth.
-   * Shape aligned with imported sample (platform=grok group type):
-   * {
-   *   name, platform:"grok", type:"oauth",
-   *   credentials:{ access_token, refresh_token, id_token, email, expires_at, client_id, ... },
-   *   extra, concurrency, priority, rate_multiplier, auto_pause_on_expired
-   * }
+   * sub2api official platform constant is "grok" (not "xai"). Unknown platforms
+   * may render as the wrong badge in admin UI (e.g. Gemini OAuth).
+   * Credentials follow GrokOAuthService.BuildAccountCredentials + free promo path:
+   * base_url=cli-chat-proxy.grok.com/v1 and optional CLI headers.
    */
   function buildSub2ApiXaiAccount(authJson = {}, options = {}) {
     const auth = isPlainObject(authJson) ? authJson : {};
@@ -223,6 +221,12 @@
     const idToken = cleanString(auth.id_token || auth.idToken);
     const email = cleanString(auth.email).toLowerCase();
     const sub = cleanString(auth.sub);
+    const baseUrl = normalizeBaseUrl(auth.base_url || auth.baseUrl || DEFAULT_BASE_URL);
+    const expired = cleanString(auth.expired || auth.expiredAt);
+    const expiresAtMs = expiresAtMsFromAuth(auth);
+    const expiresAtIso = Number.isFinite(expiresAtMs) && expiresAtMs > 0
+      ? new Date(expiresAtMs).toISOString().replace(/\.\d{3}Z$/, 'Z')
+      : (expired || '');
     const name = email || sub || 'Grok Account';
     const priority = Number.isFinite(Number(options.priority))
       ? Math.floor(Number(options.priority))
@@ -246,34 +250,42 @@
     const proxyId = Number.isFinite(proxyIdNumeric) && proxyIdNumeric > 0
       ? proxyIdNumeric
       : cleanString(proxyIdRaw);
-    const expiresAtSec = expiresAtSecondsFromAuth(auth);
+    const headers = isPlainObject(auth.headers)
+      ? cloneValue(auth.headers)
+      : cloneValue(DEFAULT_HEADERS);
+    const expiresInRaw = auth.expires_in ?? auth.expiresIn;
+    const expiresIn = Number.isFinite(Number(expiresInRaw))
+      ? Math.max(0, Math.floor(Number(expiresInRaw)))
+      : null;
     const clientId = cleanString(auth.client_id || auth.clientId || options.clientId) || CLIENT_ID;
 
-    // Prefer the working sub2api "grok" platform shape used by imported accounts.
     const account = {
       name,
       platform: 'grok',
       type: 'oauth',
       credentials: {
         access_token: accessToken,
-        chatgpt_account_id: '',
-        chatgpt_user_id: '',
-        client_id: clientId,
-        email,
-        expires_at: expiresAtSec,
-        id_token: idToken,
-        organization_id: '',
-        plan_type: cleanString(options.planType || auth.plan_type || auth.planType) || 'free',
         refresh_token: refreshToken,
-        session_token: '',
+        id_token: idToken,
+        token_type: cleanString(auth.token_type || auth.tokenType) || 'Bearer',
+        expires_in: expiresIn,
+        expires_at: expiresAtIso,
+        expired,
+        email,
+        sub,
+        client_id: clientId,
+        base_url: baseUrl,
+        token_endpoint: cleanString(auth.token_endpoint || auth.tokenEndpoint) || DEFAULT_TOKEN_ENDPOINT,
+        redirect_uri: cleanString(auth.redirect_uri || auth.redirectUri) || DEFAULT_REDIRECT_URI,
+        headers,
       },
       extra: {
         email,
-        auth_provider: '',
+        email_key: emailKey(email),
+        name,
+        auth_provider: 'xai',
         source: cleanString(options.source) || 'flowpilot-grok',
-        openai_oauth_responses_websockets_v2_enabled: false,
-        openai_oauth_responses_websockets_v2_mode: 'off',
-        privacy_mode: 'training_off',
+        last_refresh: cleanString(auth.last_refresh || auth.lastRefresh) || nowIso(),
       },
       concurrency,
       priority,
@@ -281,6 +293,10 @@
       auto_pause_on_expired: true,
     };
 
+    if (Number.isFinite(expiresAtMs) && expiresAtMs > 0) {
+      // sub2api account.expires_at is a datetime; ms epoch is accepted by JSON import paths.
+      account.expires_at = expiresAtMs;
+    }
     if (groupIds.length) {
       account.group_ids = groupIds;
     }

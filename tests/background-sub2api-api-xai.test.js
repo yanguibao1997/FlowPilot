@@ -52,6 +52,10 @@ test('sub2api createXaiAccount posts platform grok oauth account', async () => {
     access_token: 'at',
     refresh_token: 'rt',
     sub: 'sub-1',
+    base_url: 'https://cli-chat-proxy.grok.com/v1',
+    headers: {
+      'x-xai-token-auth': 'xai-grok-cli',
+    },
   });
 
   assert.equal(result.accountName, 'a@b.com');
@@ -60,11 +64,14 @@ test('sub2api createXaiAccount posts platform grok oauth account', async () => {
   const body = JSON.parse(createCall.options.body);
   assert.equal(body.platform, 'grok');
   assert.equal(body.credentials.email, 'a@b.com');
-  assert.equal(body.credentials.plan_type, 'free');
+  assert.equal(body.credentials.base_url, 'https://cli-chat-proxy.grok.com/v1');
+  assert.equal(body.credentials.headers['x-xai-token-auth'], 'xai-grok-cli');
+  assert.equal(body.credentials.client_id, 'b1a00492-073a-47ea-816f-4c329264a828');
   assert.equal(body.rate_multiplier, 1);
   assert.equal(body.type, 'oauth');
   assert.equal(body.credentials.access_token, 'at');
   assert.equal(body.priority, 3);
   assert.deepEqual(body.group_ids, [11]);
+  assert.equal(body.extra.auth_provider, 'xai');
   assert.equal(calls.some((entry) => String(entry.url).includes('openai/generate-auth-url')), false);
 });

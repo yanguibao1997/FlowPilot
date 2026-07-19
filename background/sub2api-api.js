@@ -819,7 +819,7 @@
 
       await logWithOptions(`${logLabel}：正在登录 SUB2API 并创建 Grok(platform=grok) 账号...`, 'info', options);
       const { origin, token } = await loginSub2Api(state, options);
-      // Grok uploads belong to grok-type groups (not openai/codex).
+      // Official sub2api platform constant is "grok" (xAI OAuth free promo credentials).
       const groupNames = state.sub2apiGroupName || 'grok';
       const groups = await getGroupsByNames(origin, token, groupNames, {
         ...options,
@@ -858,22 +858,30 @@
             access_token: normalizeString(authJson.access_token),
             refresh_token: normalizeString(authJson.refresh_token),
             id_token: normalizeString(authJson.id_token),
+            token_type: normalizeString(authJson.token_type) || 'Bearer',
+            expires_in: authJson.expires_in ?? null,
+            expires_at: normalizeString(authJson.expired),
+            expired: normalizeString(authJson.expired),
             email: normalizeString(authJson.email),
-            expires_at: null,
-            client_id: '',
-            chatgpt_account_id: '',
-            chatgpt_user_id: '',
-            organization_id: '',
-            plan_type: 'free',
-            session_token: '',
+            sub: normalizeString(authJson.sub),
+            client_id: 'b1a00492-073a-47ea-816f-4c329264a828',
+            base_url: normalizeString(authJson.base_url) || 'https://cli-chat-proxy.grok.com/v1',
+            token_endpoint: normalizeString(authJson.token_endpoint) || 'https://auth.x.ai/oauth2/token',
+            redirect_uri: normalizeString(authJson.redirect_uri) || 'http://127.0.0.1:56121/callback',
+            headers: (authJson.headers && typeof authJson.headers === 'object' && !Array.isArray(authJson.headers))
+              ? authJson.headers
+              : {
+                'x-grok-client-version': '0.2.93',
+                'x-xai-token-auth': 'xai-grok-cli',
+                'x-authenticateresponse': 'authenticate-response',
+                'x-grok-client-identifier': 'grok-shell',
+                'User-Agent': 'grok-shell/0.2.93 (linux; x86_64)',
+              },
           },
           extra: {
             email: normalizeString(authJson.email),
-            auth_provider: '',
+            auth_provider: 'xai',
             source: 'flowpilot-grok',
-            openai_oauth_responses_websockets_v2_enabled: false,
-            openai_oauth_responses_websockets_v2_mode: 'off',
-            privacy_mode: 'training_off',
           },
           concurrency: DEFAULT_CONCURRENCY,
           priority: accountPriority,
@@ -890,7 +898,7 @@
       createPayload.group_ids = createPayload.group_ids
         .map((id) => Number(id))
         .filter((id) => Number.isFinite(id) && id > 0);
-      // Force platform=grok for SUB2API grok-type groups.
+      // Force platform=grok (sub2api official constant). Credentials carry cli-chat-proxy base_url.
       createPayload.platform = 'grok';
       createPayload.type = createPayload.type || 'oauth';
       if (proxyId && !createPayload.proxy_id) {
