@@ -6,7 +6,7 @@ const GROK_EMAIL_SIGNUP_TEXT_PATTERN = /使用邮箱注册|sign\s*up\s*with\s*em
 const GROK_CONTINUE_TEXT_PATTERN = /continue|next|sign\s*up|submit|verify|继续|下一步|注册|提交|验证/i;
 const GROK_PROFILE_TEXT_PATTERN = /given\s*name|family\s*name|first\s*name|last\s*name|password|名字|姓氏|密码/i;
 const GROK_EMAIL_VERIFICATION_READY_TIMEOUT_MS = 90 * 1000;
-const GROK_HUMAN_VERIFICATION_SUCCESS_TIMEOUT_MS = 120 * 1000;
+const GROK_HUMAN_VERIFICATION_SUCCESS_TIMEOUT_MS = 5 * 60 * 1000;
 const GROK_HUMAN_VERIFICATION_SUCCESS_TEXT_PATTERN = /成功|success|verified|verification\s*(?:complete|successful)|challenge\s*(?:complete|passed)/i;
 
 function isVisibleGrokElement(element) {
@@ -194,7 +194,7 @@ async function waitForGrokHumanVerificationSuccess() {
     }
   );
   if (result) return result;
-  throw new Error('x.ai 人机验证未显示成功，暂不点击完成注册。');
+  throw new Error('x.ai 人机验证等待已达到 5 分钟，仍未显示成功，暂不点击完成注册。');
 }
 
 function getGrokPageState() {

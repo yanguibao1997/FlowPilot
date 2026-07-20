@@ -46,7 +46,8 @@ test('grok profile submission waits for human verification success before clicki
   assert.ok(waitIndex < buttonIndex);
   assert.ok(buttonIndex < clickIndex);
   assert.match(source, /input\[name="cf-turnstile-response"\]/);
-  assert.match(source, /GROK_HUMAN_VERIFICATION_SUCCESS_TIMEOUT_MS = 120 \* 1000/);
+  assert.match(source, /GROK_HUMAN_VERIFICATION_SUCCESS_TIMEOUT_MS = 5 \* 60 \* 1000/);
+  assert.match(source, /人机验证等待已达到 5 分钟/);
 });
 
 test('grok profile runner submits once and waits for registration success', async () => {
@@ -125,12 +126,15 @@ test('grok profile runner submits once and waits for registration success', asyn
   assert.equal(directSendCalls.length, 1);
   assert.equal(resilientSendCalls.some(({ message }) => message.nodeId === 'grok-submit-profile'), false);
   assert.equal(profileSubmitCall.options.timeoutMs, api.GROK_PROFILE_SUBMIT_COMMAND_TIMEOUT_MS);
-  assert.equal(profileSubmitCall.options.timeoutMs, 150 * 1000);
+  assert.equal(profileSubmitCall.options.timeoutMs, 330 * 1000);
   assert.equal(profileSubmitCall.options.responseTimeoutMs, api.GROK_PROFILE_SUBMIT_COMMAND_TIMEOUT_MS);
   assert.equal(cookieReadCount, 4);
-  assert.deepEqual(sleepCalls, [api.GROK_REGISTRATION_SUCCESS_POLL_INTERVAL_MS]);
+  assert.deepEqual(sleepCalls, [60 * 1000, api.GROK_REGISTRATION_SUCCESS_POLL_INTERVAL_MS]);
   assert.equal(completedPayload.grokPageState, 'signed_in');
   assert.match(profileSubmitCall.options.logMessage, /等待人机验证成功/);
+  const runnerSource = fs.readFileSync('flows/grok/background/register-runner.js', 'utf8');
+  assert.match(runnerSource, /GROK_PROFILE_WAIT_LOG_INTERVAL_MS = 60 \* 1000/);
+  assert.match(runnerSource, /不会重复填写注册资料/);
 });
 
 test('grok verification runner polls by flow node and submits normalized code', async () => {

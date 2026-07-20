@@ -6,7 +6,8 @@
   const DEFAULT_GROK_PAGE_TIMEOUT_MS = 90 * 1000;
   const GROK_VERIFICATION_PAGE_STATE = 'verification_code_entry';
   const GROK_VERIFICATION_READY_TIMEOUT_MS = 90 * 1000;
-  const GROK_PROFILE_SUBMIT_COMMAND_TIMEOUT_MS = 150 * 1000;
+  const GROK_PROFILE_SUBMIT_COMMAND_TIMEOUT_MS = 330 * 1000;
+  const GROK_PROFILE_WAIT_LOG_INTERVAL_MS = 60 * 1000;
   const GROK_REGISTRATION_SUCCESS_TIMEOUT_MS = 90 * 1000;
   const GROK_REGISTRATION_SUCCESS_POLL_INTERVAL_MS = 1000;
   const GROK_PRE_SSO_EXTRACT_WAIT_MS = 10 * 1000;
@@ -196,6 +197,36 @@
       if (result?.error) {
         throw new Error(result.error);
       }
+      return result || {};
+    }
+
+    async function waitForGrokProfileSubmission(commandPromise, nodeId) {
+      let settled = false;
+      let result = null;
+      let failure = null;
+      const observedCommand = Promise.resolve(commandPromise).then(
+        (value) => {
+          settled = true;
+          result = value;
+        },
+        (error) => {
+          settled = true;
+          failure = error;
+        }
+      );
+
+      await Promise.resolve();
+      while (!settled) {
+        await Promise.race([
+          observedCommand,
+          sleepWithStop(GROK_PROFILE_WAIT_LOG_INTERVAL_MS),
+        ]);
+        if (!settled) {
+          await log('步骤 4：仍在等待 xAI 人机验证成功，不会重复填写注册资料...', 'info', nodeId);
+        }
+      }
+      await observedCommand;
+      if (failure) throw failure;
       return result || {};
     }
 
@@ -660,17 +691,20 @@
         await activateTab(tabId);
         await ensureContentReady(tabId);
         await log('步骤 4：正在填写 xAI 注册资料，填写一次后等待人机验证成功...', 'info', nodeId);
-        const result = await sendGrokCommand(nodeId, {
-          firstName: profile.firstName,
-          lastName: profile.lastName,
-          password,
-        }, {
-          step: 4,
-          timeoutMs: GROK_PROFILE_SUBMIT_COMMAND_TIMEOUT_MS,
-          responseTimeoutMs: GROK_PROFILE_SUBMIT_COMMAND_TIMEOUT_MS,
-          retryTransport: false,
-          logMessage: '步骤 4：正在填写 xAI 注册资料并等待人机验证成功...',
-        });
+        const result = await waitForGrokProfileSubmission(
+          sendGrokCommand(nodeId, {
+            firstName: profile.firstName,
+            lastName: profile.lastName,
+            password,
+          }, {
+            step: 4,
+            timeoutMs: GROK_PROFILE_SUBMIT_COMMAND_TIMEOUT_MS,
+            responseTimeoutMs: GROK_PROFILE_SUBMIT_COMMAND_TIMEOUT_MS,
+            retryTransport: false,
+            logMessage: '步骤 4：正在填写 xAI 注册资料并等待人机验证成功...',
+          }),
+          nodeId
+        );
         await log('步骤 4：人机验证已通过，正在确认 Grok 注册成功...', 'info', nodeId);
         const registrationState = await waitForGrokRegistrationSuccess({ step: 4 });
         await log('步骤 4：已完成 Grok 注册并确认登录状态。', 'ok', nodeId);
