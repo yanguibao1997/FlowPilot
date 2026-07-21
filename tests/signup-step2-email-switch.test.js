@@ -562,6 +562,90 @@ return {
   assert.equal(api.run(), '続ける');
 });
 
+test('getSignupEmailContinueButton ignores unrelated page submits outside the signup form', () => {
+  const api = new Function(`
+const homepageSubmit = {
+  textContent: '发送消息',
+  disabled: true,
+  getAttribute(name) {
+    if (name === 'type') return 'submit';
+    return '';
+  },
+};
+
+const providerLink = {
+  textContent: '使用 Google 账户继续',
+  disabled: false,
+  getAttribute() {
+    return '';
+  },
+};
+
+const continueButton = {
+  textContent: '继续',
+  disabled: false,
+  getAttribute(name) {
+    if (name === 'type') return 'submit';
+    return '';
+  },
+};
+
+const signupForm = {
+  querySelectorAll() {
+    return [continueButton];
+  },
+};
+
+const emailInput = {
+  form: signupForm,
+  closest() {
+    return signupForm;
+  },
+};
+
+const document = {
+  querySelector(selector) {
+    if (selector === 'button[type="submit"], input[type="submit"]') {
+      return homepageSubmit;
+    }
+    return null;
+  },
+  querySelectorAll(selector) {
+    if (selector === 'button, a, [role="button"], [role="link"], input[type="button"], input[type="submit"]') {
+      return [homepageSubmit, providerLink, continueButton];
+    }
+    return [];
+  },
+};
+
+function isVisibleElement(el) {
+  return Boolean(el);
+}
+
+function isActionEnabled(el) {
+  return Boolean(el) && !el.disabled && el.getAttribute('aria-disabled') !== 'true';
+}
+
+function getActionText(el) {
+  return [el?.textContent, el?.value, el?.getAttribute?.('aria-label'), el?.getAttribute?.('title')]
+    .filter(Boolean)
+    .join(' ')
+    .replace(/\\s+/g, ' ')
+    .trim();
+}
+
+${extractFunction('getSignupEmailContinueButton')}
+
+return {
+  run() {
+    return getActionText(getSignupEmailContinueButton({ allowDisabled: true, input: emailInput }));
+  },
+};
+`)();
+
+  assert.equal(api.run(), '继续');
+});
+
 test('waitForSignupEntryState retries the signup entry click five times before giving up', async () => {
   const api = new Function(`
 const logs = [];

@@ -1475,6 +1475,69 @@ return {
   ]);
 });
 
+test('fillSignupEmailAndContinue rechecks the signup button until the current node is enabled', async () => {
+  const api = new Function(`
+const clicks = [];
+const scheduled = [];
+const sleeps = [];
+let buttonLookupCount = 0;
+
+const emailInput = { value: '' };
+const staleButton = { textContent: '继续', disabled: true };
+const currentButton = { textContent: '继续', disabled: false };
+const location = { href: 'https://chatgpt.com/' };
+const window = {
+  setTimeout(callback) {
+    scheduled.push(callback);
+    return scheduled.length;
+  },
+};
+
+function getOperationDelayRunner() {
+  return async (_metadata, operation) => operation();
+}
+function throwIfStopped() {}
+function isStopError() { return false; }
+function log() {}
+async function humanPause() {}
+async function sleep(ms) { sleeps.push(ms); }
+function fillInput(input, value) { input.value = value; }
+function simulateClick(el) { clicks.push(el.textContent); }
+async function waitForSignupEntryState() {
+  return {
+    state: 'email_entry',
+    emailInput,
+    continueButton: staleButton,
+    url: location.href,
+  };
+}
+function getSignupEmailContinueButton() {
+  buttonLookupCount += 1;
+  return buttonLookupCount >= 3 ? currentButton : staleButton;
+}
+function isActionEnabled(button) {
+  return Boolean(button) && !button.disabled;
+}
+
+${extractFunction('fillSignupEmailAndContinue')}
+
+return {
+  async run() {
+    const result = await fillSignupEmailAndContinue('ada@example.com', 2);
+    await scheduled[0]();
+    return { result, clicks, sleeps, buttonLookupCount };
+  },
+};
+`)();
+
+  const output = await api.run();
+
+  assert.equal(output.result.submitted, true);
+  assert.deepStrictEqual(output.clicks, ['继续']);
+  assert.deepStrictEqual(output.sleeps, [100, 100]);
+  assert.equal(output.buttonLookupCount, 3);
+});
+
 test('submitSignupPhoneNumberAndContinue reports before deferred submit while submit still waits for operation delay', async () => {
   const api = new Function(`
 const events = [];
