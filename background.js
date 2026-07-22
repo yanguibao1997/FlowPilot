@@ -13460,6 +13460,23 @@ async function runAutoSequenceFromNodeGraph(startNodeId, context = {}) {
       }
       throw err;
     }
+  } else if (resolvedSignupMethod !== SIGNUP_METHOD_PHONE) {
+    // 执行范围跳过注册邮箱步骤时（例如仅跑 7-10 老号重授权），仍需为 OAuth 登录链准备本轮邮箱身份。
+    const needsLoginEmailIdentity = (
+      await shouldRunNamedNode('oauth-login')
+      || await shouldRunNamedNode('relogin-bound-email')
+      || await shouldRunNamedNode('fetch-login-code')
+      || await shouldRunNamedNode('fetch-bound-email-login-code')
+    );
+    if (needsLoginEmailIdentity) {
+      await ensureAutoEmailReady(targetRun, totalRuns, attemptRuns);
+      const loginEmailState = await getState();
+      if (!String(loginEmailState?.email || '').trim()) {
+        throw new Error(
+          '缺少登录邮箱：当前执行范围未包含注册邮箱步骤。请改用“自定义邮箱池”按轮提供老号邮箱，或在侧栏“注册邮箱”中手动填写后再自动运行。'
+        );
+      }
+    }
   }
 
   let restartFromStep1WithCurrentEmail = false;
