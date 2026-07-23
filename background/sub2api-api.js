@@ -960,6 +960,130 @@
       };
     }
 
+    function resolveAgentIdentityAccountName(state = {}, identity = {}, session = null, accessToken = '') {
+      const email = normalizeEmailValue(identity?.email)
+        || resolveCodexSessionImportAccountName(state, session, accessToken)
+        || normalizeEmailValue(state?.email);
+      return email
+        || normalizeString(identity?.agent_runtime_id || identity?.agentRuntimeId)
+        || buildDraftAccountName(state.sub2apiGroupName || DEFAULT_SUB2API_GROUP_NAME);
+    }
+
+    async function importAgentIdentityAccount(state = {}, options = {}) {
+      const logLabel = normalizeString(options.logLabel) || 'SUB2API Agent Identity 导入';
+      const agentIdentityModule = deps.agentIdentityApi
+        || (typeof self !== 'undefined' ? self.MultiPageBackgroundAgentIdentity : null)
+        || (typeof globalThis !== 'undefined' ? globalThis.MultiPageBackgroundAgentIdentity : null);
+      if (!agentIdentityModule?.createAgentIdentityApi && !agentIdentityModule?.registerAgentIdentity) {
+        throw new Error('Agent Identity 模块未加载，无法注册并导入到 SUB2API。');
+      }
+      const agentIdentityApi = deps.agentIdentityApi
+        || agentIdentityModule.createAgentIdentityApi?.({
+          fetchImpl: deps.fetchImpl,
+        })
+        || agentIdentityModule;
+
+      const session = normalizeCodexSessionObject(state?.session);
+      const accessToken = normalizeString(
+        state?.accessToken
+        || session?.accessToken
+        || session?.access_token
+      );
+      const idToken = normalizeString(
+        state?.idToken
+        || session?.idToken
+        || session?.id_token
+      );
+      if (!accessToken) {
+        throw new Error('缺少 ChatGPT access_token，无法注册 Agent Identity。');
+      }
+
+      await logWithOptions(`${logLabel}：正在使用当前会话注册 OpenAI Agent Identity...`, 'info', options);
+      const identity = await agentIdentityApi.registerAgentIdentity({
+        access_token: accessToken,
+        id_token: idToken || accessToken,
+      }, {
+        timeoutMs: options.registerTimeoutMs || options.timeoutMs,
+      });
+      const importContent = agentIdentityApi.buildAgentIdentityImportContent(identity);
+      const preferredAccountName = resolveAgentIdentityAccountName(state, identity, session, accessToken);
+
+      await logWithOptions(`${logLabel}：正在通过 SUB2API 管理接口登录并准备导入 Agent Identity...`, 'info', options);
+      const { origin, token } = await loginSub2Api(state, options);
+      const groupNames = state.sub2apiGroupName || DEFAULT_SUB2API_GROUP_NAME;
+      const groups = await getGroupsByNames(origin, token, groupNames, options);
+      const groupLabel = groups.map((item) => `${item.name}（${item.id}）`).join('、');
+      const proxyPreference = resolveSub2ApiProxyPreference(state);
+      const proxy = proxyPreference ? await resolveSub2ApiProxy(origin, token, proxyPreference, options) : null;
+      const proxyId = normalizeProxyId(proxy?.id);
+      const accountPriority = resolveSub2ApiAccountPriority(state);
+
+      await logWithOptions(`${logLabel}：已登录 SUB2API，使用分组 ${groupLabel}。`, 'info', options);
+      if (proxy) {
+        await logWithOptions(`${logLabel}：已选择 SUB2API 默认代理 ${buildProxyDisplayName(proxy)}。`, 'info', options);
+      } else {
+        await logWithOptions(`${logLabel}：未配置 SUB2API 默认代理，本次将不使用代理。`, 'info', options);
+      }
+
+      const importPayload = {
+        content: importContent,
+        name: preferredAccountName,
+        notes: preferredAccountName,
+        group_ids: groups
+          .map((group) => Number(group?.id))
+          .filter((id) => Number.isFinite(id) && id > 0),
+        concurrency: DEFAULT_CONCURRENCY,
+        priority: accountPriority,
+        rate_multiplier: DEFAULT_RATE_MULTIPLIER,
+        expires_at: null,
+        auto_pause_on_expired: true,
+        update_existing: true,
+      };
+      if (!importPayload.group_ids.length) {
+        throw new Error('SUB2API 返回的目标分组 ID 无效。');
+      }
+      if (proxyId) {
+        importPayload.proxy_id = proxyId;
+      }
+
+      await logWithOptions(
+        `${logLabel}：正在导入 Agent Identity 到 SUB2API（名称：${preferredAccountName}）...`,
+        'info',
+        options
+      );
+      const importResult = normalizeCodexSessionImportResult(await requestJson(origin, '/api/v1/admin/accounts/import/codex-session', {
+        method: 'POST',
+        token,
+        timeoutMs: options.importTimeoutMs || options.timeoutMs,
+        body: importPayload,
+      }));
+
+      for (const warning of importResult.warnings) {
+        await logWithOptions(`${logLabel}：${warning.message}`, 'warn', options);
+      }
+
+      if (importResult.failed > 0) {
+        throw new Error(getCodexSessionImportFailureMessage(importResult));
+      }
+      if (importResult.created <= 0 && importResult.updated <= 0) {
+        throw new Error(getCodexSessionImportFailureMessage(importResult));
+      }
+
+      const verifiedStatus = `SUB2API Agent Identity 导入完成：新建 ${importResult.created}，更新 ${importResult.updated}，跳过 ${importResult.skipped}，失败 ${importResult.failed}`;
+      await logWithOptions(verifiedStatus, 'ok', options);
+      return {
+        verifiedStatus,
+        sub2apiImportTotal: importResult.total,
+        sub2apiImportCreated: importResult.created,
+        sub2apiImportUpdated: importResult.updated,
+        sub2apiImportSkipped: importResult.skipped,
+        sub2apiImportFailed: importResult.failed,
+        agentRuntimeId: identity.agent_runtime_id,
+        agentIdentityEmail: identity.email || preferredAccountName,
+        agentIdentityPlanType: identity.plan_type || 'unknown',
+      };
+    }
+
     return {
       buildDraftAccountName,
       buildCodexSessionImportContent,
@@ -972,6 +1096,7 @@
       prepareGrokOAuth,
       createGrokAccountFromOAuth,
       importCurrentChatGptSession,
+      importAgentIdentityAccount,
       loginSub2Api,
       normalizeProxyId,
       normalizeRedirectUri,

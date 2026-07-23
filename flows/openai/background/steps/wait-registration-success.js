@@ -106,6 +106,11 @@
     } = deps;
 
     async function clearCookiesIfEnabled(state = {}) {
+      const accessStrategy = String(state?.plusAccountAccessStrategy || '').trim().toLowerCase();
+      if (accessStrategy === 'sub2api_agent_identity') {
+        await addLog('步骤 6：Agent Identity 接入需要保留登录会话，已跳过 Cookies 清理。', 'info');
+        return;
+      }
       if (!state?.step6CookieCleanupEnabled) {
         return;
       }

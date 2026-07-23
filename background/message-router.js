@@ -725,6 +725,9 @@
       if (normalized === 'sub2api_codex_session') {
         return 'sub2api_codex_session';
       }
+      if (normalized === 'sub2api_agent_identity') {
+        return 'sub2api_agent_identity';
+      }
       if (normalized === 'cpa_codex_session') {
         return 'cpa_codex_session';
       }
@@ -740,6 +743,9 @@
     function getPlusAccountAccessStrategyLabel(value = '', targetId = '') {
       const strategy = normalizePlusAccountAccessStrategyForDisplay(value);
       const normalizedTargetId = String(targetId || '').trim().toLowerCase();
+      if (strategy === 'sub2api_agent_identity') {
+        return '注册 Agent Identity 并导入 SUB2API';
+      }
       if (strategy === 'sub2api_codex_session') {
         return '导入当前 ChatGPT 会话到 SUB2API';
       }

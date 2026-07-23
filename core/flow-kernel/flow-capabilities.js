@@ -12,6 +12,7 @@
   const PLUS_ACCOUNT_ACCESS_STRATEGY_OAUTH = 'oauth';
   const PLUS_ACCOUNT_ACCESS_STRATEGY_SUB2API_CODEX_SESSION = 'sub2api_codex_session';
   const PLUS_ACCOUNT_ACCESS_STRATEGY_CPA_CODEX_SESSION = 'cpa_codex_session';
+  const PLUS_ACCOUNT_ACCESS_STRATEGY_SUB2API_AGENT_IDENTITY = 'sub2api_agent_identity';
   const VALID_OPENAI_TARGET_IDS = typeof flowRegistryApi.getTargetDefinitions === 'function'
     ? Object.keys(flowRegistryApi.getTargetDefinitions('openai') || {})
     : (Array.isArray(flowRegistryApi.OPENAI_TARGET_IDS)
@@ -131,6 +132,9 @@
     if (normalized === PLUS_ACCOUNT_ACCESS_STRATEGY_SUB2API_CODEX_SESSION) {
       return PLUS_ACCOUNT_ACCESS_STRATEGY_SUB2API_CODEX_SESSION;
     }
+    if (normalized === PLUS_ACCOUNT_ACCESS_STRATEGY_SUB2API_AGENT_IDENTITY) {
+      return PLUS_ACCOUNT_ACCESS_STRATEGY_SUB2API_AGENT_IDENTITY;
+    }
     if (normalized === PLUS_ACCOUNT_ACCESS_STRATEGY_CPA_CODEX_SESSION) {
       return PLUS_ACCOUNT_ACCESS_STRATEGY_CPA_CODEX_SESSION;
     }
@@ -150,6 +154,11 @@
 
   function normalizePlusAccountAccessStrategyForTarget(value = '', targetId = '') {
     const normalizedStrategy = normalizePlusAccountAccessStrategy(value);
+    if (normalizedStrategy === PLUS_ACCOUNT_ACCESS_STRATEGY_SUB2API_AGENT_IDENTITY) {
+      return String(targetId || '').trim().toLowerCase() === 'sub2api'
+        ? PLUS_ACCOUNT_ACCESS_STRATEGY_SUB2API_AGENT_IDENTITY
+        : PLUS_ACCOUNT_ACCESS_STRATEGY_OAUTH;
+    }
     if (
       normalizedStrategy === PLUS_ACCOUNT_ACCESS_STRATEGY_SUB2API_CODEX_SESSION
       || normalizedStrategy === PLUS_ACCOUNT_ACCESS_STRATEGY_CPA_CODEX_SESSION
@@ -532,14 +541,27 @@
         : [PLUS_ACCOUNT_ACCESS_STRATEGY_OAUTH])
         .map(normalizePlusAccountAccessStrategy)
         .filter((strategy, index, strategies) => strategy && strategies.indexOf(strategy) === index);
-      const availablePlusAccountAccessStrategies = activeFlowId === 'openai'
-        && Boolean(flowState.supportsPlusMode)
-        && Boolean(runtimeLocks.plusModeEnabled)
-        && effectiveSignupMethod === SIGNUP_METHOD_EMAIL
-        ? (runtimeLocks.accountContribution
-          ? [PLUS_ACCOUNT_ACCESS_STRATEGY_SUB2API_CODEX_SESSION]
-          : targetPlusAccountAccessStrategies)
-        : [PLUS_ACCOUNT_ACCESS_STRATEGY_OAUTH];
+      const availablePlusAccountAccessStrategies = (() => {
+        if (activeFlowId !== 'openai' || effectiveSignupMethod !== SIGNUP_METHOD_EMAIL) {
+          return [PLUS_ACCOUNT_ACCESS_STRATEGY_OAUTH];
+        }
+        if (runtimeLocks.accountContribution) {
+          return runtimeLocks.plusModeEnabled
+            ? [PLUS_ACCOUNT_ACCESS_STRATEGY_SUB2API_CODEX_SESSION]
+            : [PLUS_ACCOUNT_ACCESS_STRATEGY_OAUTH];
+        }
+        if (runtimeLocks.plusModeEnabled && Boolean(flowState.supportsPlusMode)) {
+          return targetPlusAccountAccessStrategies;
+        }
+        // free 注册路径：Sub2API 允许 OAuth 或 Agent Identity
+        if (effectiveTargetId === 'sub2api') {
+          return targetPlusAccountAccessStrategies.filter((strategy) => (
+            strategy === PLUS_ACCOUNT_ACCESS_STRATEGY_OAUTH
+            || strategy === PLUS_ACCOUNT_ACCESS_STRATEGY_SUB2API_AGENT_IDENTITY
+          ));
+        }
+        return [PLUS_ACCOUNT_ACCESS_STRATEGY_OAUTH];
+      })();
       const effectivePlusAccountAccessStrategy = runtimeLocks.accountContribution
         && runtimeLocks.plusModeEnabled
         && effectiveSignupMethod === SIGNUP_METHOD_EMAIL
@@ -548,8 +570,6 @@
         ? requestedPlusAccountAccessStrategy
         : PLUS_ACCOUNT_ACCESS_STRATEGY_OAUTH;
       const canEditPlusAccountAccessStrategy = activeFlowId === 'openai'
-        && Boolean(flowState.supportsPlusMode)
-        && Boolean(runtimeLocks.plusModeEnabled)
         && effectiveSignupMethod === SIGNUP_METHOD_EMAIL
         && !runtimeLocks.accountContribution
         && availablePlusAccountAccessStrategies.length > 1;
@@ -863,6 +883,7 @@
     OPENAI_TARGET_CAPABILITIES,
     PLUS_ACCOUNT_ACCESS_STRATEGY_OAUTH,
     PLUS_ACCOUNT_ACCESS_STRATEGY_SUB2API_CODEX_SESSION,
+    PLUS_ACCOUNT_ACCESS_STRATEGY_SUB2API_AGENT_IDENTITY,
     PLUS_ACCOUNT_ACCESS_STRATEGY_CPA_CODEX_SESSION,
     SIGNUP_METHOD_EMAIL,
     SIGNUP_METHOD_PHONE,

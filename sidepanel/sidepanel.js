@@ -616,8 +616,10 @@ const DEFAULT_PLUS_HOSTED_CHECKOUT_OAUTH_DELAY_SECONDS = 3;
 const DEFAULT_PLUS_PAYMENT_METHOD = PLUS_PAYMENT_METHOD_PAYPAL;
 const PLUS_ACCOUNT_ACCESS_STRATEGY_OAUTH = 'oauth';
 const PLUS_ACCOUNT_ACCESS_STRATEGY_SUB2API_CODEX_SESSION = 'sub2api_codex_session';
+const PLUS_ACCOUNT_ACCESS_STRATEGY_SUB2API_AGENT_IDENTITY = 'sub2api_agent_identity';
 const PLUS_ACCOUNT_ACCESS_STRATEGY_CPA_CODEX_SESSION = 'cpa_codex_session';
 const PLUS_ACCOUNT_ACCESS_STRATEGY_CODEX_SESSION_UI = 'codex_session';
+const PLUS_ACCOUNT_ACCESS_STRATEGY_AGENT_IDENTITY_UI = 'agent_identity';
 const DEFAULT_PLUS_ACCOUNT_ACCESS_STRATEGY = PLUS_ACCOUNT_ACCESS_STRATEGY_OAUTH;
 const SIGNUP_METHOD_EMAIL = 'email';
 const SIGNUP_METHOD_PHONE = 'phone';
@@ -3676,25 +3678,64 @@ function normalizePlusHostedCheckoutOauthDelaySeconds(value) {
 
 function normalizePlusAccountAccessStrategy(value = '') {
   const normalized = String(value || '').trim().toLowerCase();
-  if (normalized === PLUS_ACCOUNT_ACCESS_STRATEGY_SUB2API_CODEX_SESSION) {
-    return PLUS_ACCOUNT_ACCESS_STRATEGY_SUB2API_CODEX_SESSION;
+  const oauthValue = typeof PLUS_ACCOUNT_ACCESS_STRATEGY_OAUTH !== 'undefined'
+    ? PLUS_ACCOUNT_ACCESS_STRATEGY_OAUTH
+    : 'oauth';
+  const sub2apiSessionValue = typeof PLUS_ACCOUNT_ACCESS_STRATEGY_SUB2API_CODEX_SESSION !== 'undefined'
+    ? PLUS_ACCOUNT_ACCESS_STRATEGY_SUB2API_CODEX_SESSION
+    : 'sub2api_codex_session';
+  const agentIdentityValue = typeof PLUS_ACCOUNT_ACCESS_STRATEGY_SUB2API_AGENT_IDENTITY !== 'undefined'
+    ? PLUS_ACCOUNT_ACCESS_STRATEGY_SUB2API_AGENT_IDENTITY
+    : 'sub2api_agent_identity';
+  const agentIdentityUiValue = typeof PLUS_ACCOUNT_ACCESS_STRATEGY_AGENT_IDENTITY_UI !== 'undefined'
+    ? PLUS_ACCOUNT_ACCESS_STRATEGY_AGENT_IDENTITY_UI
+    : 'agent_identity';
+  const cpaSessionValue = typeof PLUS_ACCOUNT_ACCESS_STRATEGY_CPA_CODEX_SESSION !== 'undefined'
+    ? PLUS_ACCOUNT_ACCESS_STRATEGY_CPA_CODEX_SESSION
+    : 'cpa_codex_session';
+  if (normalized === sub2apiSessionValue) {
+    return sub2apiSessionValue;
   }
-  if (normalized === PLUS_ACCOUNT_ACCESS_STRATEGY_CPA_CODEX_SESSION) {
-    return PLUS_ACCOUNT_ACCESS_STRATEGY_CPA_CODEX_SESSION;
+  if (normalized === agentIdentityValue || normalized === agentIdentityUiValue) {
+    return agentIdentityValue;
   }
-  return PLUS_ACCOUNT_ACCESS_STRATEGY_OAUTH;
+  if (normalized === cpaSessionValue) {
+    return cpaSessionValue;
+  }
+  return oauthValue;
 }
 
 function normalizePlusAccountAccessStrategyUiValue(value = '') {
   const normalized = String(value || '').trim().toLowerCase();
-  if (
-    normalized === PLUS_ACCOUNT_ACCESS_STRATEGY_CODEX_SESSION_UI
-    || normalized === PLUS_ACCOUNT_ACCESS_STRATEGY_SUB2API_CODEX_SESSION
-    || normalized === PLUS_ACCOUNT_ACCESS_STRATEGY_CPA_CODEX_SESSION
-  ) {
-    return PLUS_ACCOUNT_ACCESS_STRATEGY_CODEX_SESSION_UI;
+  const oauthValue = typeof PLUS_ACCOUNT_ACCESS_STRATEGY_OAUTH !== 'undefined'
+    ? PLUS_ACCOUNT_ACCESS_STRATEGY_OAUTH
+    : 'oauth';
+  const sessionUiValue = typeof PLUS_ACCOUNT_ACCESS_STRATEGY_CODEX_SESSION_UI !== 'undefined'
+    ? PLUS_ACCOUNT_ACCESS_STRATEGY_CODEX_SESSION_UI
+    : 'codex_session';
+  const agentIdentityUiValue = typeof PLUS_ACCOUNT_ACCESS_STRATEGY_AGENT_IDENTITY_UI !== 'undefined'
+    ? PLUS_ACCOUNT_ACCESS_STRATEGY_AGENT_IDENTITY_UI
+    : 'agent_identity';
+  const agentIdentityValue = typeof PLUS_ACCOUNT_ACCESS_STRATEGY_SUB2API_AGENT_IDENTITY !== 'undefined'
+    ? PLUS_ACCOUNT_ACCESS_STRATEGY_SUB2API_AGENT_IDENTITY
+    : 'sub2api_agent_identity';
+  const sub2apiSessionValue = typeof PLUS_ACCOUNT_ACCESS_STRATEGY_SUB2API_CODEX_SESSION !== 'undefined'
+    ? PLUS_ACCOUNT_ACCESS_STRATEGY_SUB2API_CODEX_SESSION
+    : 'sub2api_codex_session';
+  const cpaSessionValue = typeof PLUS_ACCOUNT_ACCESS_STRATEGY_CPA_CODEX_SESSION !== 'undefined'
+    ? PLUS_ACCOUNT_ACCESS_STRATEGY_CPA_CODEX_SESSION
+    : 'cpa_codex_session';
+  if (normalized === agentIdentityUiValue || normalized === agentIdentityValue) {
+    return agentIdentityUiValue;
   }
-  return PLUS_ACCOUNT_ACCESS_STRATEGY_OAUTH;
+  if (
+    normalized === sessionUiValue
+    || normalized === sub2apiSessionValue
+    || normalized === cpaSessionValue
+  ) {
+    return sessionUiValue;
+  }
+  return oauthValue;
 }
 
 function getPlusAccountSessionStrategyForTarget(targetId = '') {
@@ -3710,8 +3751,25 @@ function getPlusAccountSessionStrategyForTarget(targetId = '') {
 
 function resolvePlusAccountAccessStrategyForTarget(value = '', targetId = '') {
   const normalizedUiValue = normalizePlusAccountAccessStrategyUiValue(value);
-  if (normalizedUiValue !== PLUS_ACCOUNT_ACCESS_STRATEGY_CODEX_SESSION_UI) {
-    return PLUS_ACCOUNT_ACCESS_STRATEGY_OAUTH;
+  const oauthValue = typeof PLUS_ACCOUNT_ACCESS_STRATEGY_OAUTH !== 'undefined'
+    ? PLUS_ACCOUNT_ACCESS_STRATEGY_OAUTH
+    : 'oauth';
+  const sessionUiValue = typeof PLUS_ACCOUNT_ACCESS_STRATEGY_CODEX_SESSION_UI !== 'undefined'
+    ? PLUS_ACCOUNT_ACCESS_STRATEGY_CODEX_SESSION_UI
+    : 'codex_session';
+  const agentIdentityUiValue = typeof PLUS_ACCOUNT_ACCESS_STRATEGY_AGENT_IDENTITY_UI !== 'undefined'
+    ? PLUS_ACCOUNT_ACCESS_STRATEGY_AGENT_IDENTITY_UI
+    : 'agent_identity';
+  const agentIdentityValue = typeof PLUS_ACCOUNT_ACCESS_STRATEGY_SUB2API_AGENT_IDENTITY !== 'undefined'
+    ? PLUS_ACCOUNT_ACCESS_STRATEGY_SUB2API_AGENT_IDENTITY
+    : 'sub2api_agent_identity';
+  if (normalizedUiValue === agentIdentityUiValue) {
+    return normalizePlusStrategyTargetId(targetId) === 'sub2api'
+      ? agentIdentityValue
+      : oauthValue;
+  }
+  if (normalizedUiValue !== sessionUiValue) {
+    return oauthValue;
   }
   return getPlusAccountSessionStrategyForTarget(targetId);
 }
@@ -3740,6 +3798,12 @@ function getRequestedPlusAccountAccessStrategy(state = latestState) {
   const sessionUiValue = typeof PLUS_ACCOUNT_ACCESS_STRATEGY_CODEX_SESSION_UI !== 'undefined'
     ? PLUS_ACCOUNT_ACCESS_STRATEGY_CODEX_SESSION_UI
     : 'codex_session';
+  const agentIdentityUiValue = typeof PLUS_ACCOUNT_ACCESS_STRATEGY_AGENT_IDENTITY_UI !== 'undefined'
+    ? PLUS_ACCOUNT_ACCESS_STRATEGY_AGENT_IDENTITY_UI
+    : 'agent_identity';
+  const agentIdentityStrategyValue = typeof PLUS_ACCOUNT_ACCESS_STRATEGY_SUB2API_AGENT_IDENTITY !== 'undefined'
+    ? PLUS_ACCOUNT_ACCESS_STRATEGY_SUB2API_AGENT_IDENTITY
+    : 'sub2api_agent_identity';
   const resolveTargetId = () => {
     if (typeof getSelectedPanelMode === 'function') {
       return getSelectedPanelMode();
@@ -3758,15 +3822,21 @@ function getRequestedPlusAccountAccessStrategy(state = latestState) {
     ? resolvePlusAccountAccessStrategyForTarget
     : ((value = '', targetId = '') => {
       const normalizedValue = String(value || '').trim().toLowerCase();
+      const normalizedTargetId = typeof normalizePlusStrategyTargetId === 'function'
+        ? normalizePlusStrategyTargetId(targetId)
+        : String(targetId || '').trim().toLowerCase();
+      if (
+        normalizedValue === agentIdentityUiValue
+        || normalizedValue === agentIdentityStrategyValue
+      ) {
+        return normalizedTargetId === 'sub2api' ? agentIdentityStrategyValue : oauthStrategyValue;
+      }
       const isSessionImport = normalizedValue === sessionUiValue
         || normalizedValue === sub2apiSessionStrategyValue
         || normalizedValue === cpaSessionStrategyValue;
       if (!isSessionImport) {
         return oauthStrategyValue;
       }
-      const normalizedTargetId = typeof normalizePlusStrategyTargetId === 'function'
-        ? normalizePlusStrategyTargetId(targetId)
-        : String(targetId || '').trim().toLowerCase();
       if (normalizedTargetId === 'sub2api') {
         return sub2apiSessionStrategyValue;
       }
@@ -3804,10 +3874,13 @@ function normalizePlusStrategyTargetId(value = '') {
 
 function getPlusAccountAccessStrategyContinuationLabel(strategy = '', targetId = '') {
   const normalizedStrategy = normalizePlusAccountAccessStrategy(strategy);
-  if (normalizedStrategy === PLUS_ACCOUNT_ACCESS_STRATEGY_SUB2API_CODEX_SESSION) {
+  if (normalizedStrategy === 'sub2api_agent_identity') {
+    return '注册 Agent Identity 并导入 SUB2API';
+  }
+  if (normalizedStrategy === 'sub2api_codex_session') {
     return '导入当前 ChatGPT 会话到 SUB2API';
   }
-  if (normalizedStrategy === PLUS_ACCOUNT_ACCESS_STRATEGY_CPA_CODEX_SESSION) {
+  if (normalizedStrategy === 'cpa_codex_session') {
     return '导入当前 ChatGPT 会话到 CPA';
   }
   return 'OAuth 登录';
@@ -3816,10 +3889,13 @@ function getPlusAccountAccessStrategyContinuationLabel(strategy = '', targetId =
 function getPlusAccountAccessStrategyDescription(strategy = '', targetId = '') {
   const normalizedStrategy = normalizePlusAccountAccessStrategy(strategy);
   const normalizedTargetId = normalizePlusStrategyTargetId(targetId);
-  if (normalizedStrategy === PLUS_ACCOUNT_ACCESS_STRATEGY_SUB2API_CODEX_SESSION) {
+  if (normalizedStrategy === 'sub2api_agent_identity') {
+    return '注册成功后本地生成 Agent Identity，直接导入 SUB2API（free 无需 OAuth/接码）';
+  }
+  if (normalizedStrategy === 'sub2api_codex_session') {
     return '复用当前 Plus 已登录会话，直接导入到 SUB2API';
   }
-  if (normalizedStrategy === PLUS_ACCOUNT_ACCESS_STRATEGY_CPA_CODEX_SESSION) {
+  if (normalizedStrategy === 'cpa_codex_session') {
     return '复用当前 Plus 已登录会话，直接导入到 CPA';
   }
   if (normalizedTargetId === 'sub2api') {
@@ -3868,9 +3944,13 @@ function resolvePlusManualContinuationActionLabelFromState(state = latestState) 
       )
   );
   const strategy = normalizePlusAccountAccessStrategy(state?.plusAccountAccessStrategy || DEFAULT_PLUS_ACCOUNT_ACCESS_STRATEGY);
-  const effectiveStrategy = plusModeEnabled && activeFlowId === DEFAULT_ACTIVE_FLOW_ID && signupMethod === SIGNUP_METHOD_EMAIL
+  const effectiveStrategy = activeFlowId === DEFAULT_ACTIVE_FLOW_ID && signupMethod === SIGNUP_METHOD_EMAIL
+    && (
+      plusModeEnabled
+      || strategy === 'sub2api_agent_identity'
+    )
     ? strategy
-    : PLUS_ACCOUNT_ACCESS_STRATEGY_OAUTH;
+    : (typeof PLUS_ACCOUNT_ACCESS_STRATEGY_OAUTH !== 'undefined' ? PLUS_ACCOUNT_ACCESS_STRATEGY_OAUTH : 'oauth');
   return getPlusAccountAccessStrategyContinuationLabel(effectiveStrategy, targetId);
 }
 
@@ -11108,6 +11188,9 @@ function updatePlusModeUI() {
   const sessionUiStrategyValue = typeof PLUS_ACCOUNT_ACCESS_STRATEGY_CODEX_SESSION_UI !== 'undefined'
     ? PLUS_ACCOUNT_ACCESS_STRATEGY_CODEX_SESSION_UI
     : 'codex_session';
+  const agentIdentityStrategyValue = typeof PLUS_ACCOUNT_ACCESS_STRATEGY_SUB2API_AGENT_IDENTITY !== 'undefined'
+    ? PLUS_ACCOUNT_ACCESS_STRATEGY_SUB2API_AGENT_IDENTITY
+    : 'sub2api_agent_identity';
   const defaultMethod = typeof DEFAULT_PLUS_PAYMENT_METHOD !== 'undefined' ? DEFAULT_PLUS_PAYMENT_METHOD : paypalValue;
   const resolveStrategyTargetId = typeof normalizePlusStrategyTargetId === 'function'
     ? normalizePlusStrategyTargetId
@@ -11126,6 +11209,9 @@ function updatePlusModeUI() {
     : ((strategy = '', targetId = '') => {
       const normalizedStrategy = normalizePlusAccountAccessStrategy(strategy);
       const normalizedTargetId = resolveStrategyTargetId(targetId);
+      if (normalizedStrategy === agentIdentityStrategyValue) {
+        return '注册成功后本地生成 Agent Identity，直接导入 SUB2API（free 无需 OAuth/接码）';
+      }
       if (normalizedStrategy === sub2apiSessionStrategyValue) {
         return '复用当前 Plus 已登录会话，直接导入到 SUB2API';
       }
@@ -11144,6 +11230,9 @@ function updatePlusModeUI() {
     ? normalizePlusAccountAccessStrategyUiValue
     : ((value = '') => {
       const normalized = String(value || '').trim().toLowerCase();
+      if (normalized === 'agent_identity' || normalized === 'sub2api_agent_identity') {
+        return 'agent_identity';
+      }
       if (
         normalized === sessionUiStrategyValue
         || normalized === sub2apiSessionStrategyValue
@@ -11193,19 +11282,41 @@ function updatePlusModeUI() {
     ? Boolean(capabilityState.canShowPlusSettings)
     : true;
   const enabled = supportsPlusMode && rawEnabled;
-  const canEditPlusAccountAccessStrategy = Boolean(capabilityState?.canEditPlusAccountAccessStrategy);
-  const availablePlusAccountAccessStrategies = Array.isArray(capabilityState?.availablePlusAccountAccessStrategies)
-    && capabilityState.availablePlusAccountAccessStrategies.length > 0
-    ? capabilityState.availablePlusAccountAccessStrategies
-    : [oauthStrategyValue];
-  const effectivePlusAccountAccessStrategy = capabilityState?.effectivePlusAccountAccessStrategy
-    || requestedPlusAccountAccessStrategy
-    || oauthStrategyValue;
   const effectiveTargetId = resolveStrategyTargetId(
     capabilityState?.effectiveTargetId
     || (typeof getSelectedPanelMode === 'function' ? getSelectedPanelMode(latestState) : latestState?.targetId)
     || 'cpa'
   );
+  let availablePlusAccountAccessStrategies = Array.isArray(capabilityState?.availablePlusAccountAccessStrategies)
+    && capabilityState.availablePlusAccountAccessStrategies.length > 0
+    ? capabilityState.availablePlusAccountAccessStrategies.slice()
+    : [oauthStrategyValue];
+  // 当前 fork 关闭了 Plus UI，但仍要在 SUB2API 下来显示 Agent Identity / OAuth 选择。
+  if (effectiveTargetId === 'sub2api') {
+    const forced = [oauthStrategyValue, agentIdentityStrategyValue];
+    if (enabled) {
+      forced.push(sub2apiSessionStrategyValue);
+    }
+    forced.forEach((strategy) => {
+      if (!availablePlusAccountAccessStrategies.includes(strategy)) {
+        availablePlusAccountAccessStrategies.push(strategy);
+      }
+    });
+  }
+  const canEditPlusAccountAccessStrategy = effectiveTargetId === 'sub2api'
+    || Boolean(capabilityState?.canEditPlusAccountAccessStrategy);
+  const effectivePlusAccountAccessStrategy = (() => {
+    const requested = capabilityState?.effectivePlusAccountAccessStrategy
+      || requestedPlusAccountAccessStrategy
+      || oauthStrategyValue;
+    if (availablePlusAccountAccessStrategies.includes(requested)) {
+      return requested;
+    }
+    if (effectiveTargetId === 'sub2api' && availablePlusAccountAccessStrategies.includes(agentIdentityStrategyValue)) {
+      return agentIdentityStrategyValue;
+    }
+    return availablePlusAccountAccessStrategies[0] || oauthStrategyValue;
+  })();
   const method = enabled ? getSelectedPlusPaymentMethod() : defaultMethod;
   const selectedMethod = typeof selectPlusPaymentMethod !== 'undefined' && selectPlusPaymentMethod?.value
     ? normalizePlusPaymentMethod(selectPlusPaymentMethod.value)
@@ -11239,63 +11350,50 @@ function updatePlusModeUI() {
     }
     row.style.display = enabled ? '' : 'none';
   });
+  const showAccountAccessStrategy = effectiveTargetId === 'sub2api'
+    || Boolean(enabled)
+    || canEditPlusAccountAccessStrategy
+    || availablePlusAccountAccessStrategies.length > 1
+    || availablePlusAccountAccessStrategies.includes(agentIdentityStrategyValue);
   [
     typeof rowPlusAccountAccessStrategy !== 'undefined' ? rowPlusAccountAccessStrategy : null,
   ].forEach((row) => {
     if (!row) {
       return;
     }
-    row.style.display = enabled ? '' : 'none';
+    row.style.display = showAccountAccessStrategy ? '' : 'none';
   });
   if (typeof selectPlusAccountAccessStrategy !== 'undefined' && selectPlusAccountAccessStrategy) {
     const availableStrategyUiValueSet = new Set(availablePlusAccountAccessStrategies.map(normalizeStrategyUiValue));
     Array.from(selectPlusAccountAccessStrategy.options || []).forEach((option) => {
       const optionValue = normalizeStrategyUiValue(option?.value || '');
       const optionSupported = availableStrategyUiValueSet.has(optionValue);
-      option.hidden = enabled ? !optionSupported : false;
-      option.disabled = enabled ? !optionSupported : false;
+      option.hidden = showAccountAccessStrategy ? !optionSupported : false;
+      option.disabled = showAccountAccessStrategy ? !optionSupported : false;
     });
     selectPlusAccountAccessStrategy.dataset.requestedValue = capabilityState?.runtimeLocks?.accountContribution
       ? requestedPlusAccountAccessStrategy
       : effectivePlusAccountAccessStrategy;
     selectPlusAccountAccessStrategy.value = normalizeStrategyUiValue(effectivePlusAccountAccessStrategy);
-    selectPlusAccountAccessStrategy.disabled = !enabled || !canEditPlusAccountAccessStrategy;
+    selectPlusAccountAccessStrategy.disabled = !showAccountAccessStrategy || !canEditPlusAccountAccessStrategy;
     selectPlusAccountAccessStrategy.setAttribute('aria-disabled', String(selectPlusAccountAccessStrategy.disabled));
   }
   if (typeof plusAccountAccessStrategyCaption !== 'undefined' && plusAccountAccessStrategyCaption) {
-    if (!enabled) {
-      plusAccountAccessStrategyCaption.textContent = '当前来源仅支持 OAuth';
-    } else if (!canEditPlusAccountAccessStrategy) {
-      plusAccountAccessStrategyCaption.textContent = '当前来源仅支持 OAuth';
-    } else if (effectivePlusAccountAccessStrategy === sub2apiSessionStrategyValue) {
-      plusAccountAccessStrategyCaption.textContent = '复用当前 Plus 已登录会话，直接导入到 SUB2API';
-    } else if (effectivePlusAccountAccessStrategy === oauthStrategyValue) {
-      plusAccountAccessStrategyCaption.textContent = '通过 OAuth 回调创建 SUB2API 账号';
-    } else {
-      plusAccountAccessStrategyCaption.textContent = '当前来源仅支持 OAuth';
-    }
+    const canDescribeStrategy = effectiveTargetId === 'sub2api'
+      || canEditPlusAccountAccessStrategy
+      || effectivePlusAccountAccessStrategy !== oauthStrategyValue
+      || availablePlusAccountAccessStrategies.length > 1;
+    plusAccountAccessStrategyCaption.textContent = canDescribeStrategy
+      ? describePlusAccountAccessStrategy(effectivePlusAccountAccessStrategy, effectiveTargetId)
+      : '当前来源仅支持 OAuth';
   }
-  if (typeof plusAccountAccessStrategyCaption !== 'undefined' && plusAccountAccessStrategyCaption) {
-    if (!enabled || !canEditPlusAccountAccessStrategy) {
-      plusAccountAccessStrategyCaption.textContent = '当前来源仅支持 OAuth';
-    } else {
-      plusAccountAccessStrategyCaption.textContent = describePlusAccountAccessStrategy(
-        effectivePlusAccountAccessStrategy,
-        effectiveTargetId
-      );
-    }
-  }
-  if (typeof plusAccountAccessStrategyCaption !== 'undefined' && plusAccountAccessStrategyCaption) {
-    plusAccountAccessStrategyCaption.textContent = !enabled
-      ? '当前来源仅支持 OAuth'
-      : ((effectivePlusAccountAccessStrategy !== oauthStrategyValue || canEditPlusAccountAccessStrategy)
-        ? describePlusAccountAccessStrategy(
-        effectivePlusAccountAccessStrategy,
-        effectiveTargetId
-        )
-        : '当前来源仅支持 OAuth');
-  }
-  if (enabled && effectivePlusAccountAccessStrategy === sub2apiSessionStrategyValue) {
+  if (
+    (enabled || showAccountAccessStrategy)
+    && (
+      effectivePlusAccountAccessStrategy === sub2apiSessionStrategyValue
+      || effectivePlusAccountAccessStrategy === agentIdentityStrategyValue
+    )
+  ) {
     [
       typeof rowSub2ApiUrl !== 'undefined' ? rowSub2ApiUrl : null,
       typeof rowSub2ApiEmail !== 'undefined' ? rowSub2ApiEmail : null,

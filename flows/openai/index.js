@@ -433,7 +433,8 @@
         "row-sub2api-password",
         "row-sub2api-group",
         "row-sub2api-account-priority",
-        "row-sub2api-default-proxy"
+        "row-sub2api-default-proxy",
+        "row-plus-account-access-strategy"
       ]
     },
     "openai-target-codex2api": {
@@ -472,7 +473,6 @@
       "label": "Plus",
       "rowIds": [
         "row-plus-mode",
-        "row-plus-account-access-strategy",
         "row-plus-payment-method"
       ]
     },
@@ -515,7 +515,8 @@
       "requiresPhoneSignupWarning": false,
       "supportedPlusAccountAccessStrategies": [
         "oauth",
-        "sub2api_codex_session"
+        "sub2api_codex_session",
+        "sub2api_agent_identity"
       ]
     },
     "codex2api": {

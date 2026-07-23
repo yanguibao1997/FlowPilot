@@ -121,7 +121,19 @@ test('flow registry exposes canonical flow and target metadata', () => {
   );
   assert.deepEqual(
     flowRegistry.getSettingsGroupDefinition('openai-plus')?.rowIds,
-    ['row-plus-mode', 'row-plus-account-access-strategy', 'row-plus-payment-method']
+    ['row-plus-mode', 'row-plus-payment-method']
+  );
+  assert.deepEqual(
+    flowRegistry.getSettingsGroupDefinition('openai-target-sub2api')?.rowIds,
+    [
+      'row-sub2api-url',
+      'row-sub2api-email',
+      'row-sub2api-password',
+      'row-sub2api-group',
+      'row-sub2api-account-priority',
+      'row-sub2api-default-proxy',
+      'row-plus-account-access-strategy',
+    ]
   );
   assert.deepEqual(
     flowRegistry.getSettingsGroupDefinition('shared-auto-run')?.rowIds,

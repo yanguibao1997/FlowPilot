@@ -82,6 +82,9 @@
       if (normalized === 'sub2api_codex_session') {
         return 'sub2api_codex_session';
       }
+      if (normalized === 'sub2api_agent_identity') {
+        return 'sub2api_agent_identity';
+      }
       if (normalized === 'cpa_codex_session') {
         return 'cpa_codex_session';
       }

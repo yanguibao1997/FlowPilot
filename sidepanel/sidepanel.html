@@ -237,6 +237,17 @@
         <span class="data-label">默认代理</span>
         <input type="text" id="input-sub2api-default-proxy" class="data-input" placeholder="留空则不使用代理；或填写代理名称 / ID" />
       </div>
+      <div class="data-row" id="row-plus-account-access-strategy" style="display:none;">
+        <span class="data-label">账号接入</span>
+        <div class="data-inline">
+          <select id="select-plus-account-access-strategy" class="data-select">
+            <option value="oauth">OAuth</option>
+            <option value="agent_identity">Agent Identity</option>
+            <option value="codex_session">使用会话 JSON 导入</option>
+          </select>
+          <span class="setting-caption" id="plus-account-access-strategy-caption">注册成功后如何写入 SUB2API</span>
+        </div>
+      </div>
       <div class="data-row" id="row-grok-sub2api-group" style="display:none;">
         <span class="data-label">分组</span>
         <div class="data-inline">
@@ -438,16 +449,6 @@
             </label>
           </div>
           <span class="setting-caption">Plus 订阅链路</span>
-        </div>
-      </div>
-      <div class="data-row" id="row-plus-account-access-strategy" style="display:none;">
-        <span class="data-label">账号接入策略</span>
-        <div class="data-inline">
-          <select id="select-plus-account-access-strategy" class="data-select">
-            <option value="oauth">OAuth</option>
-            <option value="codex_session">使用会话 JSON 导入</option>
-          </select>
-          <span class="setting-caption" id="plus-account-access-strategy-caption">当前来源仅支持 OAuth</span>
         </div>
       </div>
       <div class="data-row" id="row-plus-payment-method" style="display:none;">
