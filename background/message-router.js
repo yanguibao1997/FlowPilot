@@ -937,7 +937,13 @@
         return;
       }
 
-      if (stepKey === 'platform-verify') {
+      if (
+        stepKey === 'platform-verify'
+        || stepKey === 'sub2api-agent-identity-import'
+        || stepKey === 'sub2api-session-import'
+        || stepKey === 'cpa-session-import'
+      ) {
+        // Agent Identity / 会话导入路径没有 platform-verify，但同样需要在成功后标记邮箱已用。
         await handlePlatformVerifyStepData(payload);
         return;
       }

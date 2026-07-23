@@ -17,6 +17,7 @@
       sleepWithStop = async () => {},
       throwIfStopped = () => {},
       waitForTabCompleteUntilStopped = async () => {},
+      markCurrentRegistrationAccountUsed = async () => ({ updated: false }),
     } = deps;
 
     let cpaApi = null;
@@ -260,6 +261,13 @@
         timeoutMs: 120000,
         importTimeoutMs: 120000,
       });
+
+      if (typeof markCurrentRegistrationAccountUsed === 'function') {
+        await markCurrentRegistrationAccountUsed(state, {
+          logPrefix: 'CPA 会话导入成功',
+          level: 'ok',
+        });
+      }
 
       await completeNodeFromBackground(state?.nodeId || 'cpa-session-import', result);
     }

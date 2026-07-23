@@ -135,6 +135,22 @@ test('background derives active custom email pool from structured entries', () =
   };
 
   assert.deepEqual(api.getCustomEmailPool(state), ['one@example.com']);
+  // 结构化条目按“下一个未用”取号：无论 targetRun 都取队首
   assert.equal(api.getCustomEmailPoolEmailForRun(state, 1), 'one@example.com');
-  assert.equal(api.getCustomEmailPoolEmailForRun(state, 2), '');
+  assert.equal(api.getCustomEmailPoolEmailForRun(state, 2), 'one@example.com');
+});
+
+test('background structured custom email pool always returns next unused entry', () => {
+  const api = createApi();
+  const state = {
+    customEmailPoolEntries: [
+      { id: 'a', email: 'used@example.com', enabled: true, used: true },
+      { id: 'b', email: 'next@example.com', enabled: true, used: false },
+      { id: 'c', email: 'later@example.com', enabled: true, used: false },
+    ],
+  };
+
+  assert.deepEqual(api.getCustomEmailPool(state), ['next@example.com', 'later@example.com']);
+  assert.equal(api.getCustomEmailPoolEmailForRun(state, 1), 'next@example.com');
+  assert.equal(api.getCustomEmailPoolEmailForRun(state, 3), 'next@example.com');
 });

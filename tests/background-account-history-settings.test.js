@@ -144,6 +144,7 @@ const DEFAULT_ACTIVE_FLOW_ID = 'openai';
 const PLUS_PAYMENT_METHOD_PAYPAL = 'paypal';
 const PLUS_ACCOUNT_ACCESS_STRATEGY_OAUTH = 'oauth';
 const PLUS_ACCOUNT_ACCESS_STRATEGY_SUB2API_CODEX_SESSION = 'sub2api_codex_session';
+const PLUS_ACCOUNT_ACCESS_STRATEGY_SUB2API_AGENT_IDENTITY = 'sub2api_agent_identity';
 const PLUS_ACCOUNT_ACCESS_STRATEGY_CPA_CODEX_SESSION = 'cpa_codex_session';
 const DEFAULT_PLUS_ACCOUNT_ACCESS_STRATEGY = PLUS_ACCOUNT_ACCESS_STRATEGY_OAUTH;
 const DEFAULT_FIVE_SIM_PRODUCT = 'openai';
@@ -231,6 +232,7 @@ return {
   assert.equal(api.normalizePersistentSettingValue('plusPaymentMethod', 'paypal'), 'paypal');
   assert.equal(api.normalizePersistentSettingValue('plusPaymentMethod', 'unknown'), 'paypal');
   assert.equal(api.normalizePersistentSettingValue('plusAccountAccessStrategy', 'sub2api_codex_session'), 'sub2api_codex_session');
+  assert.equal(api.normalizePersistentSettingValue('plusAccountAccessStrategy', 'sub2api_agent_identity'), 'sub2api_agent_identity');
   assert.equal(api.normalizePersistentSettingValue('plusAccountAccessStrategy', 'cpa_codex_session'), 'cpa_codex_session');
   assert.equal(api.normalizePersistentSettingValue('plusAccountAccessStrategy', 'unknown'), 'oauth');
   assert.equal(api.normalizePersistentSettingValue('verificationResendCount', '7'), 7);

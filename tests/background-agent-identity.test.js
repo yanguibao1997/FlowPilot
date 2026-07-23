@@ -217,4 +217,32 @@ test('workflow includes normal agent identity variant and strategy mapping', () 
   assert.match(backgroundSource, /background\/agent-identity\.js/);
   assert.match(backgroundSource, /sub2api-agent-identity-import\.js/);
   assert.match(backgroundSource, /'sub2api-agent-identity-import'/);
+  assert.match(
+    backgroundSource,
+    /PLUS_ACCOUNT_ACCESS_STRATEGY_SUB2API_AGENT_IDENTITY\s*=\s*'sub2api_agent_identity'/
+  );
+  assert.match(
+    backgroundSource,
+    /if \(normalized === PLUS_ACCOUNT_ACCESS_STRATEGY_SUB2API_AGENT_IDENTITY\)/
+  );
 });
+
+test('agent identity import step marks registration account used before completion', () => {
+  const source = fs.readFileSync('flows/openai/background/steps/sub2api-agent-identity-import.js', 'utf8');
+  assert.match(source, /markCurrentRegistrationAccountUsed/);
+  assert.match(source, /Agent Identity 导入成功/);
+
+  const sessionSource = fs.readFileSync('flows/openai/background/steps/sub2api-session-import.js', 'utf8');
+  assert.match(sessionSource, /markCurrentRegistrationAccountUsed/);
+
+  const routerSource = fs.readFileSync('background/message-router.js', 'utf8');
+  assert.match(routerSource, /sub2api-agent-identity-import/);
+  assert.match(routerSource, /handlePlatformVerifyStepData\(payload\)/);
+
+  const backgroundSource = fs.readFileSync('background.js', 'utf8');
+  assert.match(
+    backgroundSource,
+    /createSub2ApiAgentIdentityImportExecutor\(\{[\s\S]*?markCurrentRegistrationAccountUsed/
+  );
+});
+

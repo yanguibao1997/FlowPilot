@@ -18,6 +18,7 @@
       sleepWithStop = async () => {},
       throwIfStopped = () => {},
       waitForTabCompleteUntilStopped = async () => {},
+      markCurrentRegistrationAccountUsed = async () => ({ updated: false }),
       DEFAULT_SUB2API_GROUP_NAME = 'codex',
     } = deps;
 
@@ -264,6 +265,13 @@
         timeoutMs: 120000,
         importTimeoutMs: 120000,
       });
+
+      if (typeof markCurrentRegistrationAccountUsed === 'function') {
+        await markCurrentRegistrationAccountUsed(state, {
+          logPrefix: 'SUB2API 会话导入成功',
+          level: 'ok',
+        });
+      }
 
       await completeNodeFromBackground(state?.nodeId || 'sub2api-session-import', result);
     }

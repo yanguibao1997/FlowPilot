@@ -107,6 +107,7 @@ importScripts(
 const DEFAULT_ACTIVE_FLOW_ID = 'openai';
 const PLUS_ACCOUNT_ACCESS_STRATEGY_OAUTH = 'oauth';
 const PLUS_ACCOUNT_ACCESS_STRATEGY_SUB2API_CODEX_SESSION = 'sub2api_codex_session';
+const PLUS_ACCOUNT_ACCESS_STRATEGY_SUB2API_AGENT_IDENTITY = 'sub2api_agent_identity';
 const PLUS_ACCOUNT_ACCESS_STRATEGY_CPA_CODEX_SESSION = 'cpa_codex_session';
 const NORMAL_STEP_DEFINITIONS = self.MultiPageStepDefinitions?.getSteps?.({
   activeFlowId: DEFAULT_ACTIVE_FLOW_ID,
@@ -2020,6 +2021,9 @@ function normalizePlusAccountAccessStrategy(value = '') {
   if (normalized === PLUS_ACCOUNT_ACCESS_STRATEGY_SUB2API_CODEX_SESSION) {
     return PLUS_ACCOUNT_ACCESS_STRATEGY_SUB2API_CODEX_SESSION;
   }
+  if (normalized === PLUS_ACCOUNT_ACCESS_STRATEGY_SUB2API_AGENT_IDENTITY) {
+    return PLUS_ACCOUNT_ACCESS_STRATEGY_SUB2API_AGENT_IDENTITY;
+  }
   if (normalized === PLUS_ACCOUNT_ACCESS_STRATEGY_CPA_CODEX_SESSION) {
     return PLUS_ACCOUNT_ACCESS_STRATEGY_CPA_CODEX_SESSION;
   }
@@ -2708,6 +2712,17 @@ async function markCurrentRegistrationAccountUsed(state = {}, options = {}) {
 
 function getCustomEmailPoolEmailForRun(state = {}, targetRun = 1) {
   const entries = getCustomEmailPool(state);
+  if (!entries.length) {
+    return '';
+  }
+  // 结构化邮箱条目支持 used 标记：成功后会从可用队列移除，下一轮取队首。
+  // 纯字符串号池仍按轮次下标取号（兼容旧配置）。
+  const structuredEntries = typeof normalizeCustomEmailPoolEntryObjects === 'function'
+    ? normalizeCustomEmailPoolEntryObjects(state?.customEmailPoolEntries)
+    : [];
+  if (structuredEntries.length > 0) {
+    return entries[0] || '';
+  }
   const numericRun = Math.max(1, Math.floor(Number(targetRun) || 1));
   return entries[numericRun - 1] || '';
 }
@@ -13955,6 +13970,7 @@ const sub2ApiSessionImportExecutor = self.MultiPageBackgroundSub2ApiSessionImpor
   ensureContentScriptReadyOnTabUntilStopped,
   getTabId,
   isTabAlive,
+  markCurrentRegistrationAccountUsed,
   normalizeSub2ApiUrl,
   registerTab,
   sendTabMessageUntilStopped,
@@ -13970,6 +13986,7 @@ const sub2ApiAgentIdentityImportExecutor = self.MultiPageBackgroundSub2ApiAgentI
   ensureContentScriptReadyOnTabUntilStopped,
   getTabId,
   isTabAlive,
+  markCurrentRegistrationAccountUsed,
   normalizeSub2ApiUrl,
   registerTab,
   sendTabMessageUntilStopped,
@@ -13985,6 +14002,7 @@ const cpaSessionImportExecutor = self.MultiPageBackgroundCpaSessionImport?.creat
   ensureContentScriptReadyOnTabUntilStopped,
   getTabId,
   isTabAlive,
+  markCurrentRegistrationAccountUsed,
   registerTab,
   sendTabMessageUntilStopped,
   sleepWithStop,
