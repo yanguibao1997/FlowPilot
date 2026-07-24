@@ -33,6 +33,7 @@
       isRestartCurrentAttemptError,
       isStep4Route405RecoveryLimitFailure,
       isSignupUserAlreadyExistsFailure,
+      isAgentRegistryNotEnabledFailure,
       isStopError,
       launchAutoRunTimerPlan,
       normalizeAutoRunFallbackThreadIntervalMinutes,
@@ -836,6 +837,8 @@
             const blockedBySignupUserAlreadyExists = typeof isSignupUserAlreadyExistsFailure === 'function'
               && !keepSameEmailUntilAddPhone
               && isSignupUserAlreadyExistsFailure(err);
+            const blockedByAgentRegistryNotEnabled = typeof isAgentRegistryNotEnabledFailure === 'function'
+              && isAgentRegistryNotEnabledFailure(err);
             const blockedByStep4Route405 = typeof isStep4Route405RecoveryLimitFailure === 'function'
               && isStep4Route405RecoveryLimitFailure(err);
             const blockedByKiroProxy = typeof isKiroProxyFailure === 'function'
@@ -846,6 +849,7 @@
               && !blockedByPhoneNoSupply
               && !blockedByPlusNonFreeTrial
               && !blockedBySignupUserAlreadyExists
+              && !blockedByAgentRegistryNotEnabled
               && !blockedByStep4Route405
               && !blockedByKiroProxy
               && !blockedByDuckDdgDailyLimit
@@ -990,6 +994,41 @@
                 targetRun < totalRuns
                   ? `第 ${targetRun}/${totalRuns} 轮因 user_already_exists/用户已存在提前结束，自动流程将继续下一轮。`
                   : `第 ${targetRun}/${totalRuns} 轮因 user_already_exists/用户已存在提前结束，已无后续轮次，本次自动运行结束。`,
+                'warn'
+              );
+              forceFreshTabsNextRun = true;
+              break;
+            }
+
+            if (blockedByAgentRegistryNotEnabled) {
+              roundSummary.status = 'failed';
+              roundSummary.finalFailureReason = reason;
+              await setState({
+                autoRunRoundSummaries: serializeAutoRunRoundSummaries(totalRuns, roundSummaries),
+              });
+              await appendRoundRecord('failed', reason, err);
+              cancelPendingCommands('当前轮因 Agent registry 未启用已终止。');
+              await broadcastStopToContentScripts();
+              if (!autoRunSkipFailures) {
+                await addLog(
+                  `第 ${targetRun}/${totalRuns} 轮 Agent registry 未启用，自动重试未开启，当前自动运行将停止。当前邮箱已从自定义邮箱池停用。`,
+                  'warn'
+                );
+                stoppedEarly = true;
+                await broadcastAutoRunStatus('stopped', {
+                  currentRun: targetRun,
+                  totalRuns,
+                  attemptRun,
+                  sessionId: 0,
+                });
+                break;
+              }
+
+              await addLog(`第 ${targetRun}/${totalRuns} 轮 Agent registry 未启用，本轮将直接失败并跳过剩余重试；当前邮箱已从自定义邮箱池停用。`, 'warn');
+              await addLog(
+                targetRun < totalRuns
+                  ? `第 ${targetRun}/${totalRuns} 轮因 Agent registry 未启用提前结束，自动流程将继续下一轮。`
+                  : `第 ${targetRun}/${totalRuns} 轮因 Agent registry 未启用提前结束，已无后续轮次，本次自动运行结束。`,
                 'warn'
               );
               forceFreshTabsNextRun = true;

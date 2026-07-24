@@ -154,3 +154,19 @@ test('background structured custom email pool always returns next unused entry',
   assert.equal(api.getCustomEmailPoolEmailForRun(state, 1), 'next@example.com');
   assert.equal(api.getCustomEmailPoolEmailForRun(state, 3), 'next@example.com');
 });
+
+test('agent identity import and auto-run treat agent registry failure as non-retry and pool disable', () => {
+  const agentSource = fs.readFileSync('flows/openai/background/steps/sub2api-agent-identity-import.js', 'utf8');
+  assert.match(agentSource, /markCurrentCustomEmailPoolEntryDisabled/);
+  assert.match(agentSource, /agent_registry_not_enabled|Agent registry is not enabled/);
+
+  const autoRunSource = fs.readFileSync('background/auto-run-controller.js', 'utf8');
+  assert.match(autoRunSource, /blockedByAgentRegistryNotEnabled/);
+  assert.match(autoRunSource, /isAgentRegistryNotEnabledFailure/);
+
+  const backgroundSource = fs.readFileSync('background.js', 'utf8');
+  assert.match(backgroundSource, /function isAgentRegistryNotEnabledFailure/);
+  assert.match(backgroundSource, /function markCurrentCustomEmailPoolEntryDisabled/);
+  assert.match(backgroundSource, /function updateCurrentCustomEmailPoolEntry/);
+});
+

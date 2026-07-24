@@ -2589,36 +2589,59 @@ function getCustomEmailPoolEntries(state = {}) {
   }));
 }
 
-async function markCurrentCustomEmailPoolEntryUsed(state = {}, options = {}) {
-  if (!isCustomEmailPoolGenerator(state)) {
+async function updateCurrentCustomEmailPoolEntry(state = {}, options = {}) {
+  const providedState = state && typeof state === 'object' ? state : {};
+  const currentState = typeof getState === 'function' ? await getState() : {};
+  const mergedState = {
+    ...(currentState && typeof currentState === 'object' ? currentState : {}),
+    ...providedState,
+  };
+  // 优先使用调用方传入的当前注册邮箱（失败现场），池配置以最新持久化状态为准
+  const latestState = {
+    ...mergedState,
+    email: String(providedState?.email || currentState?.email || '').trim() || mergedState.email,
+    emailGenerator: providedState?.emailGenerator || currentState?.emailGenerator || mergedState.emailGenerator,
+    customEmailPoolEntries: currentState?.customEmailPoolEntries ?? providedState?.customEmailPoolEntries ?? mergedState.customEmailPoolEntries,
+    customEmailPool: currentState?.customEmailPool ?? providedState?.customEmailPool ?? mergedState.customEmailPool,
+  };
+  if (!isCustomEmailPoolGenerator(latestState)) {
     return { updated: false };
   }
 
-  const currentEmail = String(state?.email || '').trim().toLowerCase();
+  const currentEmail = String(latestState?.email || '').trim().toLowerCase();
   if (!currentEmail) {
     return { updated: false };
   }
 
-  const entries = getCustomEmailPoolEntries(state);
+  const entries = getCustomEmailPoolEntries(latestState);
   if (!entries.length) {
     return { updated: false };
   }
 
+  const markUsed = options.used !== false;
+  const markDisabled = Boolean(options.disabled);
+  const note = String(options.note || '').trim();
   let changed = false;
   const now = Date.now();
   const nextEntries = entries.map((entry) => {
     if (entry.email !== currentEmail) {
       return entry;
     }
-    if (entry.used && entry.lastUsedAt) {
-      return entry;
+    const nextEntry = { ...entry };
+    if (markUsed && (!entry.used || !entry.lastUsedAt)) {
+      nextEntry.used = true;
+      nextEntry.lastUsedAt = now;
+      changed = true;
     }
-    changed = true;
-    return {
-      ...entry,
-      used: true,
-      lastUsedAt: now,
-    };
+    if (markDisabled && entry.enabled !== false) {
+      nextEntry.enabled = false;
+      changed = true;
+    }
+    if (note && nextEntry.note !== note) {
+      nextEntry.note = note;
+      changed = true;
+    }
+    return nextEntry;
   });
 
   if (!changed) {
@@ -2640,13 +2663,36 @@ async function markCurrentCustomEmailPoolEntryUsed(state = {}, options = {}) {
     customEmailPoolEntries: nextEntries,
     customEmailPool: nextCustomEmailPool,
   });
-  const logPrefix = String(options.logPrefix || '').trim() || '自定义邮箱池：流程成功后';
-  await addLog(`${logPrefix}已将 ${currentEmail} 标记为已用。`, options.level || 'ok');
+  const logPrefix = String(options.logPrefix || '').trim() || '自定义邮箱池';
+  const statusLabel = markDisabled
+    ? (markUsed ? '已停用并标记为已用' : '已停用')
+    : '已标记为已用';
+  await addLog(`${logPrefix}：已将 ${currentEmail} ${statusLabel}。`, options.level || 'ok');
   return {
     updated: true,
     customEmailPoolEntries: nextEntries,
     customEmailPool: nextCustomEmailPool,
   };
+}
+
+async function markCurrentCustomEmailPoolEntryUsed(state = {}, options = {}) {
+  return updateCurrentCustomEmailPoolEntry(state, {
+    ...options,
+    used: true,
+    disabled: false,
+    logPrefix: String(options.logPrefix || '').trim() || '自定义邮箱池：流程成功后',
+  });
+}
+
+async function markCurrentCustomEmailPoolEntryDisabled(state = {}, options = {}) {
+  return updateCurrentCustomEmailPoolEntry(state, {
+    ...options,
+    used: true,
+    disabled: true,
+    note: String(options.note || '').trim() || 'agent_registry_not_enabled',
+    logPrefix: String(options.logPrefix || '').trim() || '自定义邮箱池：Agent Identity 不可用',
+    level: options.level || 'warn',
+  });
 }
 
 async function markCurrentRegistrationAccountUsed(state = {}, options = {}) {
@@ -9815,6 +9861,11 @@ function isSignupUserAlreadyExistsFailure(error) {
   return /SIGNUP_USER_ALREADY_EXISTS::|user_already_exists/i.test(message);
 }
 
+function isAgentRegistryNotEnabledFailure(error) {
+  const message = getErrorMessage(error);
+  return /agent_registry_not_enabled|Agent registry is not enabled/i.test(message);
+}
+
 function isKiroProxyFailure(error) {
   if (typeof loggingStatus !== 'undefined' && loggingStatus?.isKiroProxyFailure) {
     return loggingStatus.isKiroProxyFailure(error);
@@ -12565,6 +12616,7 @@ const autoRunController = self.MultiPageBackgroundAutoRunController?.createAutoR
   isRestartCurrentAttemptError,
   isStep4Route405RecoveryLimitFailure,
   isSignupUserAlreadyExistsFailure,
+  isAgentRegistryNotEnabledFailure,
   isStopError,
   launchAutoRunTimerPlan,
   normalizeAutoRunFallbackThreadIntervalMinutes,
@@ -13986,6 +14038,8 @@ const sub2ApiAgentIdentityImportExecutor = self.MultiPageBackgroundSub2ApiAgentI
   ensureContentScriptReadyOnTabUntilStopped,
   getTabId,
   isTabAlive,
+  isAgentRegistryNotEnabledFailure,
+  markCurrentCustomEmailPoolEntryDisabled,
   markCurrentRegistrationAccountUsed,
   normalizeSub2ApiUrl,
   registerTab,

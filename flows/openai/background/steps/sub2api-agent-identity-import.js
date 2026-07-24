@@ -19,8 +19,18 @@
       throwIfStopped = () => {},
       waitForTabCompleteUntilStopped = async () => {},
       markCurrentRegistrationAccountUsed = async () => ({ updated: false }),
+      markCurrentCustomEmailPoolEntryDisabled = async () => ({ updated: false }),
+      isAgentRegistryNotEnabledFailure = null,
       DEFAULT_SUB2API_GROUP_NAME = 'codex',
     } = deps;
+
+    function isAgentRegistryDisabledError(error) {
+      if (typeof isAgentRegistryNotEnabledFailure === 'function') {
+        return Boolean(isAgentRegistryNotEnabledFailure(error));
+      }
+      const message = String(error?.message || error || '');
+      return /agent_registry_not_enabled|Agent registry is not enabled/i.test(message);
+    }
 
     let sub2ApiApi = null;
 
@@ -254,17 +264,37 @@
       const sessionState = await readCurrentChatGptSession(tab.id, visibleStep);
       throwIfStopped();
 
-      const result = await api.importAgentIdentityAccount({
-        ...state,
-        session: sessionState.session,
-        accessToken: sessionState.accessToken,
-      }, {
-        visibleStep,
-        logLabel: `步骤 ${visibleStep}`,
-        logOptions: { step: visibleStep, stepKey: 'sub2api-agent-identity-import' },
-        timeoutMs: 120000,
-        importTimeoutMs: 120000,
-      });
+      let result;
+      try {
+        result = await api.importAgentIdentityAccount({
+          ...state,
+          session: sessionState.session,
+          accessToken: sessionState.accessToken,
+        }, {
+          visibleStep,
+          logLabel: `步骤 ${visibleStep}`,
+          logOptions: { step: visibleStep, stepKey: 'sub2api-agent-identity-import' },
+          timeoutMs: 120000,
+          importTimeoutMs: 120000,
+        });
+      } catch (error) {
+        if (isAgentRegistryDisabledError(error) && typeof markCurrentCustomEmailPoolEntryDisabled === 'function') {
+          try {
+            await markCurrentCustomEmailPoolEntryDisabled(state, {
+              logPrefix: `步骤 ${visibleStep}：Agent registry 不可用`,
+              note: 'agent_registry_not_enabled',
+              level: 'warn',
+            });
+          } catch (markError) {
+            await addStepLog(
+              visibleStep,
+              `Agent registry 不可用，但停用自定义邮箱失败：${markError?.message || markError}`,
+              'warn'
+            );
+          }
+        }
+        throw error;
+      }
 
       if (typeof markCurrentRegistrationAccountUsed === 'function') {
         await markCurrentRegistrationAccountUsed(state, {
